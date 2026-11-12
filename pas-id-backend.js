@@ -1,0 +1,147 @@
+'use strict';
+
+(function () {
+  const config = window.PAS_ID_CONFIG || {};
+  const hasConfiguration = Boolean(
+    /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(config.supabaseUrl || '') &&
+    typeof config.supabasePublishableKey === 'string' &&
+    config.supabasePublishableKey.trim().length > 20
+  );
+  const sdkAvailable = Boolean(window.supabase && typeof window.supabase.createClient === 'function');
+  const configured = hasConfiguration && sdkAvailable;
+
+  const client = configured
+    ? window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      })
+    : null;
+
+  async function unwrap(promise, context) {
+    const result = await promise;
+    if (result.error) {
+      const error = new Error(result.error.message || `Error en ${context}`);
+      error.code = result.error.code;
+      throw error;
+    }
+    return result.data;
+  }
+
+  const api = {
+    isConfigured: () => configured,
+    hasConfiguration: () => hasConfiguration,
+    isSdkAvailable: () => sdkAvailable,
+    client,
+
+    async getSession() {
+      if (!configured) return null;
+      const data = await unwrap(client.auth.getSession(), 'sesión');
+      return data.session || null;
+    },
+
+    async signIn(email, password) {
+      if (!configured) throw new Error('Falta configurar Supabase.');
+      if (!email || !password) throw new Error('Escribe el correo institucional y la contraseña.');
+      return unwrap(client.auth.signInWithPassword({ email, password }), 'inicio de sesión');
+    },
+
+    async signOut() {
+      if (!configured) return;
+      await unwrap(client.auth.signOut(), 'cierre de sesión');
+    },
+
+    async currentRole() {
+      if (!configured) return null;
+      return unwrap(client.rpc('current_pas_role'), 'consulta de rol');
+    },
+
+    async listMembers() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const rows = await unwrap(
+        client.from('members')
+          .select('id,legacy_folio,full_name,member_type,membership_status,issued_on,expires_on,is_historical,credentials(id,public_identifier,credential_status,issued_at,expires_on,is_historical)')
+          .order('full_name', { ascending: true }),
+        'directorio de miembros'
+      );
+      return rows.map(mapMember);
+    },
+
+    async registerMember({ name, type, expiresOn }) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const data = await unwrap(
+        client.rpc('register_pas_member', {
+          p_full_name: name,
+          p_member_type: type,
+          p_expires_on: expiresOn
+        }),
+        'registro de miembro'
+      );
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.public_identifier) throw new Error('El miembro se registró, pero no se recibió el identificador.');
+      return row;
+    },
+
+    async setMemberStatus(memberId, status) {
+      const statusMap = { Activo: 'active', Suspendido: 'suspended', Inactivo: 'inactive' };
+      const value = statusMap[status];
+      if (!value) throw new Error('Estado de membresía no válido.');
+      await unwrap(client.rpc('set_pas_member_status', { p_member_id: memberId, p_status: value }), 'cambio de estado');
+    },
+
+    async revokeCredential(credentialId) {
+      if (!credentialId) throw new Error('No se encontró una credencial asociada para revocar.');
+      await unwrap(client.rpc('revoke_pas_credential', { p_credential_id: credentialId }), 'revocación de credencial');
+    },
+
+    async issueCredential(memberId, expiresOn) {
+      const data = await unwrap(
+        client.rpc('issue_pas_credential', { p_member_id: memberId, p_expires_on: expiresOn }),
+        'emisión de credencial'
+      );
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.public_identifier) throw new Error('No se recibió el identificador de la nueva credencial.');
+      return row;
+    },
+
+    async verify(identifier) {
+      const data = await unwrap(
+        client.rpc('verify_pas_credential', { p_identifier: String(identifier || '').trim() }),
+        'verificación pública'
+      );
+      return Array.isArray(data) ? data[0] : data;
+    }
+  };
+
+  function isoToSpanish(value) {
+    if (!value) return '';
+    const parts = String(value).slice(0, 10).split('-');
+    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : String(value);
+  }
+
+  function mapMember(row) {
+    const credential = [...(row.credentials || [])].sort((a, b) =>
+      new Date(b.issued_at).getTime() - new Date(a.issued_at).getTime()
+    )[0] || null;
+    let status = 'Activo';
+    if (row.membership_status === 'suspended') status = 'Suspendido';
+    else if (row.membership_status === 'inactive') status = 'Inactivo';
+    else if (credential?.credential_status === 'revoked') status = 'Revocado';
+    else if (credential?.credential_status === 'replaced') status = 'Sustituido';
+    else if ((credential?.expires_on || row.expires_on) && new Date(`${credential?.expires_on || row.expires_on}T23:59:59`) < new Date()) status = 'Vencido';
+
+    return {
+      id: row.legacy_folio || credential?.public_identifier || row.id,
+      backendId: row.id,
+      credentialId: credential?.id || null,
+      publicIdentifier: credential?.public_identifier || null,
+      name: row.full_name,
+      type: row.member_type,
+      issued: isoToSpanish(credential?.issued_at ? credential.issued_at.slice(0, 10) : row.issued_on),
+      expires: isoToSpanish(credential?.expires_on || row.expires_on),
+      status,
+      historical: Boolean(row.is_historical),
+      membershipStatus: row.membership_status
+    };
+  }
+
+  window.PASIDBackend = api;
+})();
