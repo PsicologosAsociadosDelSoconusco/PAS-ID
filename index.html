@@ -39,6 +39,33 @@
     </div>
   </section>
 
+  <section id="passwordSetupScreen" class="password-setup-screen hidden" aria-labelledby="passwordSetupTitle">
+    <div class="password-setup-card">
+      <a class="brand-lockup setup-brand" href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">
+        <img src="assets/pas-logo.png" alt="PAS">
+        <div><strong>PAS <span>ID</span></strong><small>ACCESO INSTITUCIONAL</small></div>
+      </a>
+      <div class="setup-mark" aria-hidden="true">✓</div>
+      <span class="eyebrow">ACTIVACIÓN DE CUENTA</span>
+      <h1 id="passwordSetupTitle">Configura tu <em>contraseña.</em></h1>
+      <p class="muted">Tu invitación fue validada. Elige una contraseña segura para completar la activación de tu cuenta PAS ID.</p>
+      <form id="passwordSetupForm" class="password-setup-form">
+        <div class="login-field">
+          <label for="setupPassword">NUEVA CONTRASEÑA</label>
+          <div class="input-wrap"><span class="field-icon">⌑</span><input id="setupPassword" type="password" minlength="12" autocomplete="new-password" required placeholder="Mínimo 12 caracteres"></div>
+        </div>
+        <div class="login-field">
+          <label for="setupPasswordConfirm">CONFIRMAR CONTRASEÑA</label>
+          <div class="input-wrap"><span class="field-icon">⌑</span><input id="setupPasswordConfirm" type="password" minlength="12" autocomplete="new-password" required placeholder="Repite tu contraseña"></div>
+        </div>
+        <p class="setup-password-help">Usa al menos 12 caracteres. Evita reutilizar contraseñas de otras cuentas.</p>
+        <p id="passwordSetupMessage" class="setup-message" role="status" aria-live="polite"></p>
+        <button id="saveSetupPassword" class="btn btn-primary login-button" type="submit">Guardar contraseña <span>→</span></button>
+      </form>
+      <p class="setup-footer">Si no solicitaste esta invitación, puedes cerrar esta ventana sin continuar.</p>
+    </div>
+  </section>
+
   <section id="publicScreen" class="public-screen hidden">
     <header class="public-header"><a class="brand-lockup" href="#"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>VERIFICACIÓN INSTITUCIONAL</small></div></a><button id="backToLogin" class="btn btn-ghost">← Inicio</button></header>
     <main class="verify-main"><div class="verify-kicker"><span class="status-dot"></span> CONSULTA PÚBLICA</div><h1>Verifica una<br><em>credencial PAS.</em></h1><p class="muted">Introduce el folio o identificador de la credencial para consultar su estado en este prototipo.</p>

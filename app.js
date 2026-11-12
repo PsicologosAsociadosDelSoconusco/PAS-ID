@@ -236,9 +236,80 @@ function showApp() {
   renderAll();
   showView('overview');
 }
+function showPasswordSetupScreen(message = '') {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('publicScreen').classList.add('hidden');
+  document.getElementById('appShell').classList.add('hidden');
+  const screen = document.getElementById('passwordSetupScreen');
+  screen.classList.remove('hidden');
+  const messageBox = document.getElementById('passwordSetupMessage');
+  messageBox.textContent = message;
+  messageBox.classList.toggle('show', Boolean(message));
+  messageBox.classList.remove('success');
+}
+function showLoginWithNotice(message) {
+  document.getElementById('passwordSetupScreen').classList.add('hidden');
+  document.getElementById('appShell').classList.add('hidden');
+  document.getElementById('publicScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  const hint = document.querySelector('.login-hint');
+  if (hint) hint.innerHTML = `<span class="info-dot">i</span> ${escapeHtml(message)}`;
+}
 
 // Con proyecto Supabase configurado se exige sesión y rol de Directiva.
 // Sin configuración, el botón conserva la experiencia local de demostración.
+document.getElementById('passwordSetupForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!connectedMode) {
+    showLoginWithNotice('No se pudo conectar con PAS ID. Solicita una nueva invitación a la Directiva.');
+    return;
+  }
+  const password = document.getElementById('setupPassword').value;
+  const confirmation = document.getElementById('setupPasswordConfirm').value;
+  const message = document.getElementById('passwordSetupMessage');
+  const submit = document.getElementById('saveSetupPassword');
+  message.classList.add('show');
+  message.classList.remove('success');
+  if (password.length < 12) {
+    message.textContent = 'La contraseña debe contener al menos 12 caracteres.';
+    return;
+  }
+  if (password !== confirmation) {
+    message.textContent = 'Las contraseñas no coinciden. Revísalas e inténtalo nuevamente.';
+    return;
+  }
+  submit.disabled = true;
+  submit.textContent = 'Guardando contraseña…';
+  try {
+    await pasBackend.updatePassword(password);
+    document.getElementById('setupPassword').value = '';
+    document.getElementById('setupPasswordConfirm').value = '';
+    const role = await pasBackend.currentRole();
+    if (role === 'directiva') {
+      const session = await pasBackend.getSession();
+      signedInEmail = session?.user?.email || '';
+      members = await pasBackend.listMembers();
+      document.getElementById('activeUserName').textContent = signedInEmail || 'Directiva PAS';
+      document.getElementById('activeUserRole').textContent = 'Directiva · Conectado';
+      document.getElementById('signOutButton').classList.remove('hidden');
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/([?&])type=(invite|recovery)(&|$)/, '$1').replace(/[?&]$/, ''));
+      showApp();
+      showToast('Cuenta activada. Bienvenido a PAS ID.');
+    } else {
+      await pasBackend.signOut();
+      showLoginWithNotice('Tu contraseña quedó configurada. Tu cuenta aún no tiene un rol institucional asignado; solicita a la Directiva que active tu acceso.');
+    }
+  } catch (error) {
+    message.textContent = error.message || 'No fue posible guardar la contraseña. Solicita una nueva invitación si el enlace venció.';
+    message.classList.add('show');
+    submit.disabled = false;
+    submit.innerHTML = 'Guardar contraseña <span>→</span>';
+    return;
+  }
+  submit.disabled = false;
+  submit.innerHTML = 'Guardar contraseña <span>→</span>';
+});
+
 document.getElementById('enterDemo').addEventListener('click', async () => {
   if (backendUnavailable) { showToast('La configuración está presente, pero no se pudo cargar la biblioteca de conexión.'); return; }
   if (!connectedMode) { showApp(); return; }
@@ -454,10 +525,22 @@ document.getElementById('signOutButton').addEventListener('click', async () => {
 
 // En una instancia conectada se recupera la sesión persistida y se comprueba el rol.
 const urlParams = new URLSearchParams(window.location.search);
+const authHashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+const authFlowType = authHashParams.get('type') || urlParams.get('type');
+const authFlowError = authHashParams.get('error_description') || urlParams.get('error_description');
 (async function initialiseConnectedSession() {
   if (!connectedMode) return;
   try {
     const session = await pasBackend.getSession();
+    if (authFlowError) {
+      showLoginWithNotice('El enlace de acceso no pudo validarse o ha caducado. Solicita una nueva invitación.');
+      return;
+    }
+    if (authFlowType === 'invite' || authFlowType === 'recovery') {
+      if (session) showPasswordSetupScreen();
+      else showLoginWithNotice('No se pudo validar el enlace. Solicita una nueva invitación o recuperación de contraseña.');
+      return;
+    }
     if (!session) return;
     const role = await pasBackend.currentRole();
     if (role !== 'directiva') {

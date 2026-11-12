@@ -49,6 +49,14 @@
       await unwrap(client.auth.signOut(), 'cierre de sesión');
     },
 
+    async updatePassword(password) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      if (typeof password !== 'string' || password.length < 12) {
+        throw new Error('La contraseña debe tener al menos 12 caracteres.');
+      }
+      return unwrap(client.auth.updateUser({ password }), 'actualización de contraseña');
+    },
+
     async currentRole() {
       if (!configured) return null;
       return unwrap(client.rpc('current_pas_role'), 'consulta de rol');
