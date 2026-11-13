@@ -9,6 +9,7 @@ PAS ID es la plataforma de identidad y membresías de Psicólogos Asociados del 
 - `config.js`: URL y clave pública del proyecto (nunca secretos administrativos).
 - `supabase/001_initial_schema.sql`: esquema de instalación original.
 - `supabase/002_member_portal.sql`: migración incremental de expedientes y portal de afiliados.
+- `supabase/004_institutional_requests.sql`: solicitudes institucionales para todos los roles autenticados.
 - `supabase/functions/manage-member-access`: Edge Function para invitar/vincular cuentas de manera segura.
 - `docs/ETAPA-2-INSTALACION.md`: guía de despliegue y pruebas.
 

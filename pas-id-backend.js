@@ -83,6 +83,26 @@
       return unwrap(client.rpc('submit_my_pas_profile_change_request', { p_changes: changes }), 'solicitud de actualización');
     },
 
+    async createInstitutionalRequest(payload) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('submit_pas_request', { p_request: payload }), 'envío de solicitud');
+    },
+
+    async listMyInstitutionalRequests() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('institutional_requests').select('id,request_number,category,subject,description,related_place,proposed_date,request_status,submitted_at,admin_response').order('submitted_at', { ascending: false }), 'mis solicitudes');
+    },
+
+    async listInstitutionalRequests() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('institutional_requests').select('id,request_number,requester_email,requester_name,requester_role,category,subject,description,related_place,proposed_date,request_status,submitted_at,admin_response').order('submitted_at', { ascending: false }), 'solicitudes institucionales');
+    },
+
+    async reviewInstitutionalRequest(requestId, status, response = '') {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('review_pas_request', { p_request_id: requestId, p_status: status, p_response: response || null }), 'respuesta de solicitud');
+    },
+
     async listProfileChangeRequests() {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.from('member_profile_change_requests')

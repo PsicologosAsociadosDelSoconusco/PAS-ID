@@ -307,12 +307,13 @@ function showView(viewName) {
   document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
   target.classList.add('active');
   document.querySelectorAll('.nav-item[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === viewName));
-  const labels = {overview:'Resumen',members:'Directorio de miembros',credentials:'Credenciales',events:'Eventos y asistencia',certificates:'Constancias',verification:'Verificar credencial',settings:'Configuración'};
+  const labels = {overview:'Resumen',members:'Directorio de miembros',credentials:'Credenciales',events:'Eventos y asistencia',requests:'Solicitudes institucionales',certificates:'Constancias',verification:'Verificar credencial',settings:'Configuración'};
   document.getElementById('breadcrumbCurrent').textContent = labels[viewName] || 'Plataforma';
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarScrim').classList.remove('show');
   if (viewName === 'members') loadProfileRequests();
   if (viewName === 'events') loadEventsModule();
+  if (viewName === 'requests') loadInstitutionalRequestsAdmin();
   if (viewName === 'certificates') loadCertificatesModule();
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -461,6 +462,28 @@ function renderMemberRequests(requests = []) {
     return `<article class="member-request-row"><div><b>${status}</b><small>${new Date(request.submitted_at).toLocaleDateString('es-MX')} · ${escapeHtml(changes)}</small>${request.admin_response ? `<small>Respuesta de Directiva: ${escapeHtml(request.admin_response)}</small>` : ''}</div><span class="request-status ${request.request_status}">${status}</span></article>`;
   }).join('');
 }
+function requestStatusLabel(status) { return ({pending:'Pendiente',in_review:'En revisión',approved:'Aprobada',rejected:'Rechazada',needs_info:'Requiere información'})[status] || 'Pendiente'; }
+function renderMemberRequests(requests = []) {
+  const target = document.getElementById('memberRequestsList');
+  if (!target) return;
+  if (!requests.length) { target.innerHTML = '<p class="muted">Aún no has enviado solicitudes.</p>'; return; }
+  target.innerHTML = requests.map(item => `<article class="institutional-request-row"><div class="institutional-request-row-head"><div><b>${escapeHtml(item.subject)}</b><small>${escapeHtml(item.request_number)} · ${new Date(item.submitted_at).toLocaleDateString('es-MX')}</small></div><span class="request-status ${item.request_status}">${requestStatusLabel(item.request_status)}</span></div><p>${escapeHtml(item.description)}</p><small class="institutional-request-meta">${escapeHtml(item.category)}${item.related_place ? ' · ' + escapeHtml(item.related_place) : ''}</small>${item.admin_response ? `<div class="institutional-response"><b>Respuesta de Directiva</b><p>${escapeHtml(item.admin_response)}</p></div>` : ''}</article>`).join('');
+}
+async function loadMyInstitutionalRequests() {
+  const target = document.getElementById('memberRequestsList'); if (!target || !connectedMode) return;
+  target.innerHTML = '<p class="muted">Consultando tus solicitudes…</p>';
+  try { renderMemberRequests(await pasBackend.listMyInstitutionalRequests()); }
+  catch (error) { target.innerHTML = `<p class="muted">No fue posible cargar tus solicitudes: ${escapeHtml(error.message)}</p>`; }
+}
+async function loadInstitutionalRequestsAdmin() {
+  const target = document.getElementById('institutionalRequestsAdminList'); if (!target || !connectedMode || signedInRole !== 'directiva') return;
+  target.innerHTML = '<p class="muted">Consultando solicitudes…</p>';
+  try {
+    const rows = await pasBackend.listInstitutionalRequests();
+    document.getElementById('institutionalRequestCount').textContent = `${rows.filter(r => r.request_status === 'pending').length} pendientes`;
+    target.innerHTML = rows.length ? rows.map(r => `<article class="institutional-admin-row"><div class="profile-request-head"><div><b>${escapeHtml(r.subject)}</b><small>${escapeHtml(r.request_number)} · ${escapeHtml(r.requester_name || r.requester_email || 'Usuario PAS')} · ${escapeHtml(r.requester_role)} · ${new Date(r.submitted_at).toLocaleString('es-MX')}</small></div><span class="request-status ${r.request_status}">${requestStatusLabel(r.request_status)}</span></div><div class="institutional-admin-meta"><b>${escapeHtml(r.category)}</b>${r.related_place ? ' · ' + escapeHtml(r.related_place) : ''}${r.proposed_date ? ' · Fecha: ' + escapeHtml(r.proposed_date) : ''}</div><p>${escapeHtml(r.description)}</p>${r.admin_response ? `<div class="institutional-response"><b>Respuesta anterior</b><p>${escapeHtml(r.admin_response)}</p></div>` : ''}<div class="institutional-admin-actions"><select aria-label="Estado de solicitud" data-request-status="${r.id}"><option value="in_review" ${r.request_status==='in_review'?'selected':''}>En revisión</option><option value="needs_info" ${r.request_status==='needs_info'?'selected':''}>Requiere información</option><option value="approved" ${r.request_status==='approved'?'selected':''}>Aprobar</option><option value="rejected" ${r.request_status==='rejected'?'selected':''}>Rechazar</option></select><input type="text" maxlength="3000" placeholder="Respuesta u observaciones para el solicitante" value="${escapeHtml(r.admin_response || '')}" data-request-response="${r.id}"><button class="btn btn-primary" type="button" data-save-request="${r.id}">Guardar respuesta</button></div></article>`).join('') : '<p class="muted">Todavía no se han recibido solicitudes.</p>';
+  } catch (error) { target.innerHTML = `<p class="muted">No fue posible cargar las solicitudes: ${escapeHtml(error.message)}</p>`; }
+}
 function portalEventDate(value) {
   if (!value) return 'Fecha por confirmar';
   return new Date(value).toLocaleString('es-MX', { dateStyle:'long', timeStyle:'short' });
@@ -538,7 +561,7 @@ function showMemberPortal(profile) {
     profileAbout: detail.about || ''
   };
   Object.entries(fields).forEach(([id,value]) => { document.getElementById(id).value = value; });
-  renderMemberRequests(profile.requests || []);
+  loadMyInstitutionalRequests();
   loadMemberEvents();
   loadMyCertificates();
 }
@@ -699,6 +722,29 @@ document.getElementById('profileChangeForm').addEventListener('submit', async ev
   } finally {
     button.disabled = false; button.textContent = 'Enviar actualización a Directiva →';
   }
+});
+document.getElementById('institutionalRequestForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = document.getElementById('submitInstitutionalRequest'); button.disabled = true; button.textContent = 'Enviando…';
+  const payload = { category: document.getElementById('requestCategory').value, subject: document.getElementById('requestSubject').value.trim(), description: document.getElementById('requestDescription').value.trim(), related_place: document.getElementById('requestPlace').value.trim(), proposed_date: document.getElementById('requestDate').value || null };
+  try { const result = await pasBackend.createInstitutionalRequest(payload); event.target.reset(); await loadMyInstitutionalRequests(); showToast(`Solicitud enviada. Tu folio es ${result.request_number}.`); }
+  catch (error) { showToast(error.message || 'No se pudo enviar la solicitud.'); }
+  finally { button.disabled = false; button.textContent = 'Enviar solicitud a Directiva →'; }
+});
+document.getElementById('directivaInstitutionalRequestForm').addEventListener('submit', async event => {
+  event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button[type="submit"]'); button.disabled = true;
+  const payload = { category: document.getElementById('directivaRequestCategory').value, subject: document.getElementById('directivaRequestSubject').value.trim(), description: document.getElementById('directivaRequestDescription').value.trim(), related_place: document.getElementById('directivaRequestPlace').value.trim(), proposed_date: document.getElementById('directivaRequestDate').value || null };
+  try { const result = await pasBackend.createInstitutionalRequest(payload); form.reset(); await loadInstitutionalRequestsAdmin(); showToast(`Solicitud enviada. Folio: ${result.request_number}.`); }
+  catch (error) { showToast(error.message || 'No se pudo enviar la solicitud.'); }
+  finally { button.disabled = false; }
+});
+document.getElementById('refreshInstitutionalRequests').addEventListener('click', loadInstitutionalRequestsAdmin);
+document.getElementById('institutionalRequestsAdminList').addEventListener('click', async event => {
+  const button = event.target.closest('[data-save-request]'); if (!button) return;
+  const id = button.dataset.saveRequest; const status = document.querySelector(`[data-request-status="${id}"]`).value; const response = document.querySelector(`[data-request-response="${id}"]`).value.trim();
+  button.disabled = true;
+  try { await pasBackend.reviewInstitutionalRequest(id, status, response); await loadInstitutionalRequestsAdmin(); showToast('La solicitud fue actualizada.'); }
+  catch (error) { showToast(error.message || 'No se pudo actualizar la solicitud.'); button.disabled = false; }
 });
 document.getElementById('memberSignOutButton').addEventListener('click', async () => {
   try { if (connectedMode) await pasBackend.signOut(); } catch (error) { console.warn(error); }
