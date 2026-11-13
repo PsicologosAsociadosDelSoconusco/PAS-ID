@@ -376,6 +376,31 @@ function renderMemberRequests(requests = []) {
     return `<article class="member-request-row"><div><b>${status}</b><small>${new Date(request.submitted_at).toLocaleDateString('es-MX')} · ${escapeHtml(changes)}</small>${request.admin_response ? `<small>Respuesta de Directiva: ${escapeHtml(request.admin_response)}</small>` : ''}</div><span class="request-status ${request.request_status}">${status}</span></article>`;
   }).join('');
 }
+function portalEventDate(value) {
+  if (!value) return 'Fecha por confirmar';
+  return new Date(value).toLocaleString('es-MX', { dateStyle:'long', timeStyle:'short' });
+}
+async function loadMemberEvents() {
+  const eventsTarget = document.getElementById('memberPublishedEvents');
+  const attendanceTarget = document.getElementById('memberAttendanceHistory');
+  if (!eventsTarget || !attendanceTarget) return;
+  eventsTarget.innerHTML = '<p class="muted">Consultando agenda institucional…</p>';
+  attendanceTarget.innerHTML = '<p class="muted">Consultando tu historial…</p>';
+  try {
+    const [events, attendance] = await Promise.all([pasBackend.listPublishedEvents(), pasBackend.listMyAttendance()]);
+    eventsTarget.innerHTML = events.length ? events.map(item => `
+      <article class="member-event-row"><div class="member-event-date">${escapeHtml(portalEventDate(item.starts_at))}</div><div class="member-event-copy"><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.location || 'Lugar por confirmar')}</span>${item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}</div></article>`).join('') : '<p class="events-empty">Por el momento no hay próximos eventos publicados.</p>';
+    attendanceTarget.innerHTML = attendance.length ? attendance.map(row => {
+      const event = row.events || {};
+      return `<article class="member-event-row member-attendance-row"><div class="member-event-date">Asistencia · ${escapeHtml(portalEventDate(row.checked_in_at))}</div><div class="member-event-copy"><b>${escapeHtml(event.title || 'Actividad PAS')}</b><span>${escapeHtml(event.location || 'Lugar no especificado')}</span></div><span class="member-attendance-pill">Registrada</span></article>`;
+    }).join('') : '<p class="events-empty">Todavía no tienes asistencias registradas.</p>';
+  } catch (error) {
+    console.error('No se pudo cargar la agenda del afiliado.', error);
+    eventsTarget.innerHTML = `<p class="events-empty">No se pudieron cargar los eventos. ${escapeHtml(error.message || '')}</p>`;
+    attendanceTarget.innerHTML = `<p class="events-empty">No se pudo cargar tu historial. ${escapeHtml(error.message || '')}</p>`;
+  }
+}
+
 function showMemberPortal(profile) {
   currentMemberProfile = profile;
   const member = profile.member || {};
@@ -427,6 +452,7 @@ function showMemberPortal(profile) {
   };
   Object.entries(fields).forEach(([id,value]) => { document.getElementById(id).value = value; });
   renderMemberRequests(profile.requests || []);
+  loadMemberEvents();
 }
 async function activateAuthenticatedRole(role, session) {
   signedInRole = role || '';
@@ -927,7 +953,7 @@ async function loadAttendance(eventId) {
   document.getElementById('attendanceContent').classList.remove('hidden');
   document.getElementById('selectedEventTitle').textContent = event.title;
   const memberSelect = document.getElementById('attendanceMember');
-  const activeMembers = members.filter(member => member.backendId && member.membershipStatus !== 'inactive' && member.membershipStatus !== 'suspended');
+  const activeMembers = members.filter(member => member.backendId && member.status === 'Activo' && member.membershipStatus === 'active');
   memberSelect.innerHTML = '<option value="">Selecciona un miembro…</option>' + activeMembers.map(member => `<option value="${escapeHtml(member.backendId)}">${escapeHtml(member.name)} · ${escapeHtml(member.id)}</option>`).join('');
   const list = document.getElementById('attendanceList');
   list.innerHTML = '<p class="muted">Cargando participantes…</p>';
@@ -946,14 +972,15 @@ document.getElementById('closeCreateEvent')?.addEventListener('click', () => doc
 document.getElementById('refreshEvents')?.addEventListener('click', loadEventsModule);
 document.getElementById('createEventForm')?.addEventListener('submit', async event => {
   event.preventDefault();
-  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  const form = event.currentTarget;
+  const submit = form.querySelector('button[type="submit"]');
   const start = document.getElementById('eventStart').value;
   const end = document.getElementById('eventEnd').value;
   if (end && new Date(end) < new Date(start)) return showToast('La fecha de término no puede ser anterior al inicio.');
   submit.disabled = true;
   try {
     await pasBackend.createEvent({ title:document.getElementById('eventTitle').value.trim(), location:document.getElementById('eventLocation').value.trim() || null, description:document.getElementById('eventDescription').value.trim() || null, starts_at:new Date(start).toISOString(), ends_at:end ? new Date(end).toISOString() : null, published:document.getElementById('eventPublished').checked });
-    event.currentTarget.reset();
+    form.reset();
     document.getElementById('createEventPanel').classList.add('hidden');
     showToast('Evento guardado en PAS ID.');
     await loadEventsModule();

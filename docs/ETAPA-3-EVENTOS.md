@@ -27,3 +27,7 @@ Esta entrega utiliza las tablas `public.events` y `public.event_attendance` y la
 - La lista de eventos y el control de asistencia están implementados para Directiva. No se ha añadido todavía una agenda de eventos en el portal de afiliados.
 - Cancelar un evento elimina sus registros de asistencia porque la relación actual usa `ON DELETE CASCADE`. Para eventos ya realizados, es preferible despublicarlos en vez de eliminarlos.
 - No se han modificado las tablas ni los registros históricos de miembros o credenciales.
+
+
+## Corrección posterior: agenda del afiliado
+El portal del afiliado ahora consulta únicamente eventos publicados y muestra su propio historial de asistencias. Las consultas usan las políticas RLS existentes: eventos publicados para usuarios autenticados y asistencias propias para cada afiliado. No se amplían permisos ni se exponen listas de participantes. También se corrige el reset del formulario de creación y el selector de asistencia excluye membresías que no estén activas o cuya credencial no esté vigente.

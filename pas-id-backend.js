@@ -187,6 +187,16 @@
       return unwrap(client.from('event_attendance').select('id,event_id,member_id,checked_in_at,members(id,full_name,legacy_folio,member_type)').eq('event_id', eventId).order('checked_in_at', { ascending: false }), 'asistencias');
     },
 
+    async listPublishedEvents() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('events').select('id,title,description,starts_at,ends_at,location').eq('published', true).order('starts_at', { ascending: true }), 'eventos publicados');
+    },
+
+    async listMyAttendance() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('event_attendance').select('id,checked_in_at,events(id,title,starts_at,location)').order('checked_in_at', { ascending: false }), 'mi historial de asistencia');
+    },
+
     async addAttendance(eventId, memberId) {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.from('event_attendance').insert({ event_id: eventId, member_id: memberId }).select('id,event_id,member_id,checked_in_at').single(), 'registro de asistencia');
