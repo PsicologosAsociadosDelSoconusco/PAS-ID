@@ -16,6 +16,29 @@ let selectedMemberId = null;
 let pendingRandomId = null;
 let toastTimer;
 
+// Ajusta las etiquetas que en el HTML base describen el modo de demostración.
+// En modo conectado, los formularios de altas y cambios utilizan las funciones RPC de Supabase.
+if (connectedMode) {
+  const memberSubmit = document.querySelector('#memberForm button[type="submit"]');
+  const memberHelp = document.querySelector('#memberModal .field-help');
+  const memberNote = document.querySelector('#view-members .bottom-note p');
+  const verifyNote = document.querySelector('#view-verification .verify-disclaimer');
+  const footerStatus = document.querySelector('.app-footer span:last-child');
+  if (memberSubmit) memberSubmit.innerHTML = 'Registrar miembro <span>→</span>';
+  if (memberHelp) memberHelp.textContent = 'El registro se guardará en la base institucional y recibirá un identificador aleatorio generado por el servidor.';
+  if (memberNote) memberNote.textContent = 'Los folios históricos de los fundadores se conservan. Las nuevas altas se registran en la base institucional con identificadores aleatorios revocables.';
+  if (verifyNote) verifyNote.textContent = 'La consulta se realiza en línea desde la base de datos institucional de PAS ID y muestra únicamente información autorizada para verificación pública.';
+  if (footerStatus) footerStatus.innerHTML = '<i></i> PAS ID · Entorno conectado · Fase de pruebas';
+  const integrationHeading = document.querySelector('#view-settings .settings-card:nth-child(2) h3');
+  const integrationEyebrow = document.querySelector('#view-settings .settings-card:nth-child(2) .eyebrow');
+  const integrationStatuses = document.querySelectorAll('#view-settings .integration-list li em');
+  if (integrationHeading) integrationHeading.textContent = 'Estado de la infraestructura';
+  if (integrationEyebrow) integrationEyebrow.textContent = 'ESTADO DE INTEGRACIÓN';
+  ['Conectada', 'Conectada', 'Publicado', 'Pendiente'].forEach((value, index) => {
+    if (integrationStatuses[index]) integrationStatuses[index].textContent = value;
+  });
+}
+
 function loadMembers() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
