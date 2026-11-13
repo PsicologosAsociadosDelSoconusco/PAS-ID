@@ -92,6 +92,7 @@
         <div class="member-portal-section-head member-attendance-heading"><div><span class="eyebrow">MI PARTICIPACIÓN</span><h2>Mi historial de asistencia</h2></div></div>
         <div id="memberAttendanceHistory" class="member-events-list" aria-live="polite"><p class="muted">Cargando tu historial…</p></div>
       </section>
+      <section class="member-portal-card member-certificates-card"><div class="member-portal-section-head"><div><span class="eyebrow">RECONOCIMIENTO Y FORMACIÓN</span><h2>Mis constancias</h2><p>Documentos emitidos por la Directiva a tu nombre.</p></div></div><div id="memberCertificatesList" class="member-events-list"><p class="muted">Cargando tus constancias…</p></div></section>
       <section class="member-portal-card member-contact-card">
         <div class="member-portal-section-head"><div><span class="eyebrow">DATOS DE CONTACTO Y PERFIL</span><h2>Mi información</h2><p>Los cambios se envían a revisión de la Directiva antes de actualizar tu expediente.</p></div></div>
         <form id="profileChangeForm" class="member-profile-form">
@@ -177,7 +178,16 @@
         </section>
         <section class="view" id="view-certificates">
           <div class="page-heading"><div><div class="eyebrow">RECONOCIMIENTO Y FORMACIÓN <span class="gold-dash"></span></div><h1>Constancias y <em>certificados.</em></h1><p>Historial de participación y documentos emitidos por PAS.</p></div><span class="coming-tag">MÓDULO SIGUIENTE</span></div>
-          <div class="module-empty panel"><div class="module-art certificate-art"><div class="module-circle"><span>♧</span></div><i class="spark s1">✦</i><i class="spark s2">✦</i></div><span class="eyebrow">PRÓXIMA ETAPA</span><h2>Cada experiencia,<br><em>un logro que permanece.</em></h2><p>Permitirá generar constancias vinculadas a los miembros y a los eventos, con folios únicos y mecanismos de consulta.</p><div class="module-features"><span>✧ Emisión de constancias</span><span>⌕ Verificación documental</span><span>↓ Descarga PDF</span></div></div>
+          <div class="certificates-layout">
+            <section class="panel certificate-issue-panel"><div class="panel-heading"><div><span class="eyebrow">EMISIÓN INSTITUCIONAL</span><h3>Generar constancia</h3></div></div>
+              <form id="issueCertificateForm" class="form-grid"><div class="form-field full"><label for="certificateMember">Afiliado *</label><select id="certificateMember" required><option value="">Cargando miembros…</option></select></div>
+                <div class="form-field full"><label for="certificateEvent">Evento relacionado (opcional)</label><select id="certificateEvent"><option value="">Sin evento asociado</option></select></div>
+                <div class="form-field full"><label for="certificateTitle">Concepto de la constancia *</label><input id="certificateTitle" maxlength="180" required placeholder="Ej. Participación en taller de primeros auxilios psicológicos"></div>
+                <div class="form-field full"><small class="field-help">Se asignará un folio único. La emisión quedará registrada en Supabase y será visible para el afiliado correspondiente.</small></div>
+                <div class="form-field full"><button class="btn btn-primary" type="submit">Emitir constancia →</button></div></form>
+            </section>
+            <section class="panel certificate-list-panel"><div class="panel-heading"><div><span class="eyebrow">REGISTRO DOCUMENTAL</span><h3>Constancias emitidas</h3></div><button class="text-button" id="refreshCertificates">Actualizar ↻</button></div><div id="certificatesList"><p class="muted">Cargando constancias…</p></div></section>
+          </div>
         </section>
         <section class="view" id="view-verification">
           <div class="page-heading"><div><div class="eyebrow">CONSULTA ABIERTA <span class="gold-dash"></span></div><h1>Verificación de <em>credenciales.</em></h1><p>Comprueba en línea el estado vigente de una credencial PAS.</p></div><span class="public-tag">ACCESO PÚBLICO</span></div>

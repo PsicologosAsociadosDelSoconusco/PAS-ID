@@ -19,51 +19,6 @@ let selectedCredentialMemberId = null;
 let pendingRandomId = null;
 let toastTimer;
 
-let qrFallbackPromise = null;
-async function ensureQrLibrary() {
-  if (window.QRCode) return window.QRCode;
-  if (!qrFallbackPromise) {
-    qrFallbackPromise = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-      script.onload = () => window.QRCode ? resolve(window.QRCode) : reject(new Error('La biblioteca QR no quedó disponible.'));
-      script.onerror = () => reject(new Error('No se pudo cargar la biblioteca para generar códigos QR.'));
-      document.head.appendChild(script);
-    });
-  }
-  return qrFallbackPromise;
-}
-async function drawVerificationQr(canvas, value, size) {
-  const ctx = canvas?.getContext?.('2d');
-  if (!ctx || !value) return false;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  try {
-    const library = await ensureQrLibrary();
-    if (typeof library.toCanvas === 'function') {
-      await library.toCanvas(canvas, value, { width: size, margin: 1, color: { dark: '#173655', light: '#ffffff' } });
-      return true;
-    }
-    // Compatibilidad con QRCode.js cuando la biblioteca principal no carga.
-    const host = document.createElement('div');
-    host.style.cssText = 'position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;overflow:hidden';
-    document.body.appendChild(host);
-    try {
-      new library(host, { text: value, width: size, height: size, colorDark: '#173655', colorLight: '#ffffff', correctLevel: library.CorrectLevel?.M || 0 });
-      const generated = host.querySelector('canvas');
-      if (!generated) throw new Error('La biblioteca QR no generó una imagen.');
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(generated, 0, 0, canvas.width, canvas.height);
-      return true;
-    } finally { host.remove(); }
-  } catch (error) {
-    console.warn('No se pudo generar el QR de verificación.', error);
-    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('QR no disponible', canvas.width / 2, canvas.height / 2);
-    return false;
-  }
-}
-
 // Ajusta las etiquetas que en el HTML base describen el modo de demostración.
 // En modo conectado, los formularios de altas y cambios utilizan las funciones RPC de Supabase.
 if (connectedMode) {
@@ -224,7 +179,14 @@ function renderCredentials() {
   qrHeading.textContent = `QR · ${preview.name}`;
   qrHelp.textContent = 'El mismo enlace puede grabarse en una etiqueta NFC compatible.';
   copyButton.disabled = false; copyButton.dataset.url = verifyUrl;
-  drawVerificationQr(canvas, verifyUrl, 112);
+  const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (window.QRCode?.toCanvas) {
+    window.QRCode.toCanvas(canvas, verifyUrl, {width:112, margin:1, color:{dark:'#173655',light:'#ffffff'}})
+      .catch(error => { console.warn('No se pudo generar el QR de la credencial.', error); });
+  } else {
+    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('QR no disponible',canvas.width/2,canvas.height/2);
+  }
 }
 function renderAll() {
   updateStats(); renderRecent(); renderMembers(); renderCredentials();
@@ -267,6 +229,7 @@ function showView(viewName) {
   document.getElementById('sidebarScrim').classList.remove('show');
   if (viewName === 'members') loadProfileRequests();
   if (viewName === 'events') loadEventsModule();
+  if (viewName === 'certificates') loadCertificatesModule();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 function openMemberModal() {
@@ -469,7 +432,16 @@ function showMemberPortal(profile) {
   link.href = verifyUrl || '#';
   link.classList.toggle('disabled-link', !verifyUrl);
   const canvas = document.getElementById('memberPortalQrCanvas');
-  drawVerificationQr(canvas, verifyUrl, 168);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (verifyUrl && window.QRCode?.toCanvas) {
+    window.QRCode.toCanvas(canvas, verifyUrl, {width:168, margin:1, color:{dark:'#173655',light:'#ffffff'}})
+      .catch(error => { console.warn('No se pudo generar el QR.', error); });
+  } else {
+    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#52677e'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('QR no disponible', canvas.width/2, canvas.height/2);
+  }
   const fields = {
     profileEmail: detail.contact_email || signedInEmail || '',
     profilePhone: detail.phone || '',
@@ -482,6 +454,7 @@ function showMemberPortal(profile) {
   Object.entries(fields).forEach(([id,value]) => { document.getElementById(id).value = value; });
   renderMemberRequests(profile.requests || []);
   loadMemberEvents();
+  loadMyCertificates();
 }
 async function activateAuthenticatedRole(role, session) {
   signedInRole = role || '';
@@ -1146,3 +1119,68 @@ document.getElementById('attendanceQrManualForm')?.addEventListener('submit', as
   finally { submit.disabled = false; }
 });
 window.addEventListener('beforeunload', stopAttendanceScanner);
+
+// Etapa 4: emisión y consulta de constancias.
+function makeCertificateNumber() {
+  const bytes = new Uint8Array(8);
+  if (window.crypto?.getRandomValues) window.crypto.getRandomValues(bytes);
+  else for (let i=0;i<bytes.length;i++) bytes[i] = Math.floor(Math.random()*256);
+  return `PAS-C-${Array.from(bytes, b => (b % 16).toString(16)).join('').toUpperCase()}`;
+}
+async function loadCertificatesModule() {
+  if (!connectedMode || signedInRole !== 'directiva') return;
+  const list = document.getElementById('certificatesList');
+  const memberSelect = document.getElementById('certificateMember');
+  const eventSelect = document.getElementById('certificateEvent');
+  if (!list || !memberSelect || !eventSelect) return;
+  list.innerHTML = '<p class="muted">Consultando constancias…</p>';
+  try {
+    const [rows, people, events] = await Promise.all([pasBackend.listCertificates(), pasBackend.listMembers(), pasBackend.listEvents()]);
+    memberSelect.innerHTML = '<option value="">Selecciona un afiliado…</option>' + people.filter(m => m.backendId).map(m => `<option value="${escapeHtml(m.backendId)}">${escapeHtml(m.name)} · ${escapeHtml(m.id)}</option>`).join('');
+    eventSelect.innerHTML = '<option value="">Sin evento asociado</option>' + events.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.title)}</option>`).join('');
+    list.innerHTML = rows.length ? rows.map(row => {
+      const person = Array.isArray(row.members) ? row.members[0] : row.members;
+      const event = Array.isArray(row.events) ? row.events[0] : row.events;
+      return `<article class="certificate-record"><div><b>${escapeHtml(row.title)}</b><span>${escapeHtml(person?.full_name || 'Afiliado')} · ${escapeHtml(row.certificate_number)}</span><small>${event ? `Actividad: ${escapeHtml(event.title)} · ` : ''}Emitida: ${new Date(row.issued_at).toLocaleDateString('es-MX')}</small></div><div class="certificate-actions"><span class="status-pill ${row.revoked_at ? 'status-revoked' : 'status-active'}">${row.revoked_at ? 'Revocada' : 'Vigente'}</span>${!row.revoked_at ? `<button class="btn btn-outline" type="button" data-print-certificate="${escapeHtml(row.id)}">Imprimir / PDF</button><button class="text-button" type="button" data-revoke-certificate="${escapeHtml(row.id)}">Revocar</button>` : ''}</div></article>`;
+    }).join('') : '<p class="events-empty">Todavía no se han emitido constancias.</p>';
+    window._pasCertificateRows = rows;
+  } catch (error) { list.innerHTML = `<p class="events-empty">No se pudieron cargar las constancias: ${escapeHtml(error.message)}</p>`; }
+}
+async function loadMyCertificates() {
+  const target = document.getElementById('memberCertificatesList');
+  if (!target || !connectedMode) return;
+  try {
+    const rows = await pasBackend.listMyCertificates();
+    target.innerHTML = rows.length ? rows.map(row => `<article class="member-event-row"><div class="member-event-date">${new Date(row.issued_at).toLocaleDateString('es-MX')}</div><div class="member-event-copy"><b>${escapeHtml(row.title)}</b><span>Folio ${escapeHtml(row.certificate_number)}</span></div><span class="member-attendance-pill">${row.revoked_at ? 'Revocada' : 'Vigente'}</span></article>`).join('') : '<p class="events-empty">Todavía no tienes constancias emitidas.</p>';
+  } catch (error) { target.innerHTML = `<p class="events-empty">No se pudieron cargar tus constancias. ${escapeHtml(error.message)}</p>`; }
+}
+function printPasCertificate(row) {
+  const person = (window._pasCertificateRows || []).find(r => r.id === row.id);
+  if (!person) return;
+  const member = Array.isArray(person.members) ? person.members[0] : person.members;
+  const event = Array.isArray(person.events) ? person.events[0] : person.events;
+  const w = window.open('', '_blank');
+  if (!w) return showToast('Permite las ventanas emergentes para imprimir la constancia.');
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Constancia ${escapeHtml(person.certificate_number)}</title><style>body{font-family:Georgia,serif;color:#173655;margin:0;padding:40px;background:#fff}.sheet{border:8px double #c89a35;min-height:680px;padding:54px;text-align:center;display:flex;flex-direction:column;justify-content:center}h1{font-size:38px;margin:18px 0;color:#173655}h2{font-size:30px;margin:20px 0;color:#173655}p{font-size:18px;line-height:1.7}.eyebrow{letter-spacing:4px;color:#98701d;font: bold 12px Arial}.folio{margin-top:50px;font:12px Arial;color:#65758a}@media print{body{padding:0}.sheet{min-height:90vh}}</style></head><body><main class="sheet"><div class="eyebrow">PSICÓLOGOS ASOCIADOS DEL SOCONUSCO</div><h1>CONSTANCIA</h1><p>Se otorga la presente a</p><h2>${escapeHtml(member?.full_name || 'Afiliado PAS')}</h2><p>Por su participación / reconocimiento en:</p><h2>${escapeHtml(person.title)}</h2>${event ? `<p>Actividad: ${escapeHtml(event.title)}</p>` : ''}<p>Expedida por la Directiva de Psicólogos Asociados del Soconusco.</p><p>${new Date(person.issued_at).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'})}</p><div class="folio">FOLIO: ${escapeHtml(person.certificate_number)} · Documento generado desde PAS ID</div></main><script>window.onload=()=>window.print()<\/script></body></html>`;
+  w.document.write(html); w.document.close();
+}
+document.getElementById('issueCertificateForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget; const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await pasBackend.issueCertificate({memberId:document.getElementById('certificateMember').value,eventId:document.getElementById('certificateEvent').value,title:document.getElementById('certificateTitle').value.trim(),certificateNumber:makeCertificateNumber()});
+    form.reset(); await loadCertificatesModule(); showToast('Constancia emitida y registrada.');
+  } catch (error) { showToast(error.message || 'No se pudo emitir la constancia.'); }
+  finally { button.disabled = false; }
+});
+document.getElementById('refreshCertificates')?.addEventListener('click', loadCertificatesModule);
+document.getElementById('certificatesList')?.addEventListener('click', async event => {
+  const printButton = event.target.closest('[data-print-certificate]');
+  const revokeButton = event.target.closest('[data-revoke-certificate]');
+  if (printButton) printPasCertificate({id:printButton.dataset.printCertificate});
+  if (revokeButton && confirm('¿Revocar esta constancia? La acción quedará registrada.')) {
+    try { await pasBackend.revokeCertificate(revokeButton.dataset.revokeCertificate); await loadCertificatesModule(); showToast('Constancia revocada.'); }
+    catch (error) { showToast(error.message || 'No se pudo revocar.'); }
+  }
+});

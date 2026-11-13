@@ -207,6 +207,28 @@
       await unwrap(client.from('event_attendance').delete().eq('id', attendanceId), 'eliminación de asistencia');
     },
 
+    async listCertificates() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('certificates').select('id,member_id,event_id,certificate_number,title,issued_at,revoked_at,members(id,full_name,legacy_folio,member_type),events(id,title,starts_at)').order('issued_at', { ascending: false }), 'constancias');
+    },
+
+    async listMyCertificates() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('certificates').select('id,certificate_number,title,issued_at,revoked_at,events(title,starts_at)').order('issued_at', { ascending: false }), 'mis constancias');
+    },
+
+    async issueCertificate({ memberId, eventId, title, certificateNumber }) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const { data: userData } = await client.auth.getUser();
+      return unwrap(client.from('certificates').insert({ member_id: memberId, event_id: eventId || null, title, certificate_number: certificateNumber, created_by: userData.user?.id || null }).select('id,member_id,event_id,certificate_number,title,issued_at,revoked_at').single(), 'emisión de constancia');
+    },
+
+    async revokeCertificate(certificateId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const { data: userData } = await client.auth.getUser();
+      return unwrap(client.from('certificates').update({ revoked_at: new Date().toISOString(), revoked_by: userData.user?.id || null }).eq('id', certificateId).is('revoked_at', null).select('id').single(), 'revocación de constancia');
+    },
+
     async verify(identifier) {
       const data = await unwrap(
         client.rpc('verify_pas_credential', { p_identifier: String(identifier || '').trim() }),
