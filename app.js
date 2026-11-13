@@ -911,28 +911,6 @@ if (urlParams.has('verificar')) {
   renderVerification(urlParams.get('verificar'), 'publicVerifyResult');
 }
 
-// Verificación pública de constancias mediante el folio incluido en el QR.
-async function renderCertificateVerification(certificateNumber) {
-  openPublicScreen();
-  const input = document.getElementById('publicVerifyInput');
-  const target = document.getElementById('publicVerifyResult');
-  if (input) input.value = certificateNumber;
-  if (!target) return;
-  target.innerHTML = '<div class="verification-not-found"><b>Verificando constancia…</b><span>Consultando el registro institucional de PAS.</span></div>';
-  try {
-    const result = await pasBackend.verifyCertificate(certificateNumber);
-    if (!result) {
-      target.innerHTML = '<div class="verification-not-found"><b>Constancia no encontrada.</b><span>El folio no coincide con un documento registrado en PAS ID.</span></div>';
-      return;
-    }
-    const revoked = Boolean(result.revoked_at);
-    target.innerHTML = `<div class="verification-card-result"><div class="verification-result-head"><span class="eyebrow">VERIFICACIÓN DE CONSTANCIA</span><span class="status-pill ${revoked ? 'status-revoked' : 'status-active'}">${revoked ? 'Revocada' : 'Vigente'}</span></div><h3>${escapeHtml(result.full_name || 'Afiliado PAS')}</h3><p>${escapeHtml(result.title || 'Constancia institucional')}</p><div class="verification-data"><div><span>FOLIO</span><b>${escapeHtml(result.certificate_number)}</b></div><div><span>FECHA DE EMISIÓN</span><b>${new Date(result.issued_at).toLocaleDateString('es-MX')}</b></div></div>${result.event_title ? `<p>Actividad: ${escapeHtml(result.event_title)}</p>` : ''}<strong class="verification-label ${revoked ? 'status-revoked' : 'status-active'}">${revoked ? 'DOCUMENTO REVOCADO' : 'DOCUMENTO AUTÉNTICO · VIGENTE'}</strong><small class="verification-footnote">Consulta pública en la base institucional de PAS ID.</small></div>`;
-  } catch (error) {
-    target.innerHTML = `<div class="verification-not-found"><b>No fue posible verificar la constancia.</b><span>${escapeHtml(error.message || 'Inténtalo más tarde.')}</span></div>`;
-  }
-}
-if (urlParams.has('verificar-constancia')) renderCertificateVerification(urlParams.get('verificar-constancia'));
-
 // Módulo operativo de eventos y control de asistencia (Directiva).
 let pasEvents = [];
 let selectedEventId = null;
@@ -1220,26 +1198,9 @@ async function loadMyCertificates() {
     target.innerHTML = rows.length ? rows.map(row => `<article class="member-event-row"><div class="member-event-date">${new Date(row.issued_at).toLocaleDateString('es-MX')}</div><div class="member-event-copy"><b>${escapeHtml(row.title)}</b><span>Folio ${escapeHtml(row.certificate_number)}</span></div><span class="member-attendance-pill">${row.revoked_at ? 'Revocada' : 'Vigente'}</span></article>`).join('') : '<p class="events-empty">Todavía no tienes constancias emitidas.</p>';
   } catch (error) { target.innerHTML = `<p class="events-empty">No se pudieron cargar tus constancias. ${escapeHtml(error.message)}</p>`; }
 }
-async function printPasCertificate(row) {
+function printPasCertificate(row) {
   const person = (window._pasCertificateRows || []).find(r => r.id === row.id);
   if (!person) return;
-  const verifyUrl = new URL(window.location.href);
-  verifyUrl.search = '';
-  verifyUrl.hash = '';
-  verifyUrl.searchParams.set('verificar-constancia', person.certificate_number);
-  let certificateQr = '';
-  try {
-    if (window.QRCode?.toCanvas) {
-      const qrCanvas = document.createElement('canvas');
-      await window.QRCode.toCanvas(qrCanvas, verifyUrl.toString(), {width:150, margin:1, color:{dark:'#173354',light:'#ffffff'}});
-      certificateQr = qrCanvas.toDataURL('image/png');
-    }
-  } catch (error) { console.warn('No se pudo generar el QR de la constancia con la biblioteca local.', error); }
-  // Respaldo: generar el QR como imagen remota si la biblioteca local no está disponible.
-  // El contenido del QR es únicamente la URL pública y el folio documental.
-  if (!certificateQr) {
-    certificateQr = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&color=23,51,84&bgcolor=255,255,255&data=' + encodeURIComponent(verifyUrl.toString());
-  }
   const member = Array.isArray(person.members) ? person.members[0] : person.members;
   const event = Array.isArray(person.events) ? person.events[0] : person.events;
   const w = window.open('', '_blank');
@@ -1281,8 +1242,6 @@ async function printPasCertificate(row) {
   .signature small{display:block;font-weight:400;color:#718096;margin-top:3px;font-size:8px}
   .date{font:11px Arial,sans-serif;color:#53657a;text-align:center;padding-bottom:2px}
   .folio{position:absolute;right:.05in;bottom:.02in;font:8px Arial,sans-serif;color:#66758a;letter-spacing:.4px}
-  .certificate-qr{position:absolute;right:.48in;bottom:.62in;display:flex;flex-direction:column;align-items:center;gap:3px;font:6px Arial,sans-serif;letter-spacing:.7px;color:#53657a}
-  .certificate-qr img{width:.62in;height:.62in;object-fit:contain}
   @media screen{body{width:100%;height:auto;background:#e9edf2;padding:18px}.sheet{margin:0 auto;box-shadow:0 8px 28px #172b4430;max-width:100%;}}
   @media print{html,body{width:11in;height:8.5in}.sheet{margin:0;box-shadow:none;break-after:avoid;page-break-after:avoid}}
 </style>
@@ -1311,20 +1270,10 @@ async function printPasCertificate(row) {
       <div class="date">${issued}</div>
       <div class="signature">SELLO INSTITUCIONAL<small>Documento emitido desde PAS ID</small></div>
     </div>
-    ${certificateQr ? `<div class="certificate-qr"><img src="${certificateQr}" alt="QR para verificar constancia"><span>ESCANEA PARA VERIFICAR</span></div>` : ''}
     <div class="folio">FOLIO ÚNICO: ${escapeHtml(person.certificate_number)}</div>
   </section>
 </main>
-<script>window.onload=()=>{
-  const qr=document.querySelector('.certificate-qr img');
-  const printWhenReady=()=>setTimeout(()=>window.print(),350);
-  if(!qr || qr.complete) return printWhenReady();
-  let finished=false;
-  const done=()=>{if(finished)return;finished=true;printWhenReady();};
-  qr.addEventListener('load',done,{once:true});
-  qr.addEventListener('error',done,{once:true});
-  setTimeout(done,5000);
-};<\/script>
+<script>window.onload=()=>{setTimeout(()=>window.print(),250)};<\/script>
 </body>
 </html>`;
   w.document.open();

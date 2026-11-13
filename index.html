@@ -208,10 +208,41 @@
   <div id="detailModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle"><div class="modal detail-modal"><div class="modal-head"><div><span class="eyebrow">REGISTRO DE MIEMBRO</span><h2 id="detailModalTitle">Gestionar miembro</h2></div><button class="modal-close" data-close-detail aria-label="Cerrar">×</button></div><div id="detailContent"></div></div></div>
   <div id="issuedModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="issuedModalTitle"><div class="modal"><div class="modal-head"><div><span class="eyebrow">CREDENCIAL GENERADA</span><h2 id="issuedModalTitle">Identificador PAS ID</h2></div><button class="modal-close" data-close-issued aria-label="Cerrar">×</button></div><p class="muted">Este código identifica la credencial nueva. Consérvalo para incorporarlo al QR y al chip NFC de la tarjeta.</p><div class="generated-id"><span><small>IDENTIFICADOR ALEATORIO</small><b id="issuedIdentifier">—</b></span><span class="generated-lock">⌑</span></div><div class="generated-id"><span><small>URL DE VERIFICACIÓN PARA QR / NFC</small><b id="issuedVerificationUrl" class="verification-url">—</b></span></div><div class="modal-actions"><button type="button" class="btn btn-ghost" id="copyIssuedIdentifier">Copiar código</button><button type="button" class="btn btn-ghost" id="copyIssuedUrl">Copiar enlace</button><button type="button" class="btn btn-primary" data-close-issued>Listo</button></div></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="config.js"></script>
-  <script src="pas-id-backend.js"></script>
-  <script src="app.js"></script>
+  <script>
+    // Carga el SDK de Supabase desde dos CDN en orden. Evita que un fallo
+    // temporal de jsDelivr envíe la plataforma al modo demostración.
+    (function () {
+      function loadScript(src) {
+        return new Promise(function (resolve, reject) {
+          var script = document.createElement('script');
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = function () { script.remove(); reject(new Error('No se pudo cargar ' + src)); };
+          document.head.appendChild(script);
+        });
+      }
+      async function boot() {
+        try {
+          try {
+            await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+          } catch (_) {
+            await loadScript('https://unpkg.com/@supabase/supabase-js@2');
+          }
+        } catch (error) {
+          console.error('No fue posible cargar el SDK de Supabase desde los CDN disponibles.', error);
+        }
+        try {
+          await loadScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js');
+        } catch (_) {
+          try { await loadScript('https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js'); }
+          catch (error) { console.warn('La biblioteca QR no está disponible; se podrá usar el mecanismo alternativo.', error); }
+        }
+        await loadScript('config.js');
+        await loadScript('pas-id-backend.js');
+        await loadScript('app.js');
+      }
+      boot();
+    })();
+  </script>
 </body>
 </html>
