@@ -1133,18 +1133,62 @@ async function loadCertificatesModule() {
   const memberSelect = document.getElementById('certificateMember');
   const eventSelect = document.getElementById('certificateEvent');
   if (!list || !memberSelect || !eventSelect) return;
+
   list.innerHTML = '<p class="muted">Consultando constancias…</p>';
-  try {
-    const [rows, people, events] = await Promise.all([pasBackend.listCertificates(), pasBackend.listMembers(), pasBackend.listEvents()]);
-    memberSelect.innerHTML = '<option value="">Selecciona un afiliado…</option>' + people.filter(m => m.backendId).map(m => `<option value="${escapeHtml(m.backendId)}">${escapeHtml(m.name)} · ${escapeHtml(m.id)}</option>`).join('');
-    eventSelect.innerHTML = '<option value="">Sin evento asociado</option>' + events.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.title)}</option>`).join('');
+  memberSelect.innerHTML = '<option value="">Cargando afiliados…</option>';
+  eventSelect.innerHTML = '<option value="">Cargando eventos…</option>';
+
+  // Cargar cada recurso por separado: un fallo en miembros no debe dejar
+  // bloqueada la lista de constancias ni ocultar el error real.
+  const withTimeout = (promise, label) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`La consulta de ${label} tardó demasiado. Actualiza la página e inténtalo de nuevo.`)), 15000))
+  ]);
+
+  const [certResult, peopleResult, eventsResult] = await Promise.allSettled([
+    withTimeout(pasBackend.listCertificates(), 'constancias'),
+    withTimeout(pasBackend.listMembers(), 'afiliados'),
+    withTimeout(pasBackend.listEvents(), 'eventos')
+  ]);
+
+  if (peopleResult.status === 'fulfilled') {
+    const people = peopleResult.value || [];
+    memberSelect.innerHTML = '<option value="">Selecciona un afiliado…</option>' +
+      people.filter(m => m.backendId).map(m => `<option value="${escapeHtml(m.backendId)}">${escapeHtml(m.name)} · ${escapeHtml(m.id)}</option>`).join('');
+    if (!people.some(m => m.backendId)) memberSelect.innerHTML = '<option value="">No hay afiliados disponibles</option>';
+  } else {
+    memberSelect.innerHTML = '<option value="">No se pudieron cargar los afiliados</option>';
+    console.error('PAS ID: error cargando afiliados para constancias', peopleResult.reason);
+  }
+
+  if (eventsResult.status === 'fulfilled') {
+    const events = eventsResult.value || [];
+    eventSelect.innerHTML = '<option value="">Sin evento asociado</option>' +
+      events.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.title)}</option>`).join('');
+  } else {
+    eventSelect.innerHTML = '<option value="">No se pudieron cargar los eventos</option>';
+    console.error('PAS ID: error cargando eventos para constancias', eventsResult.reason);
+  }
+
+  if (certResult.status === 'fulfilled') {
+    const rows = certResult.value || [];
     list.innerHTML = rows.length ? rows.map(row => {
       const person = Array.isArray(row.members) ? row.members[0] : row.members;
       const event = Array.isArray(row.events) ? row.events[0] : row.events;
       return `<article class="certificate-record"><div><b>${escapeHtml(row.title)}</b><span>${escapeHtml(person?.full_name || 'Afiliado')} · ${escapeHtml(row.certificate_number)}</span><small>${event ? `Actividad: ${escapeHtml(event.title)} · ` : ''}Emitida: ${new Date(row.issued_at).toLocaleDateString('es-MX')}</small></div><div class="certificate-actions"><span class="status-pill ${row.revoked_at ? 'status-revoked' : 'status-active'}">${row.revoked_at ? 'Revocada' : 'Vigente'}</span>${!row.revoked_at ? `<button class="btn btn-outline" type="button" data-print-certificate="${escapeHtml(row.id)}">Imprimir / PDF</button><button class="text-button" type="button" data-revoke-certificate="${escapeHtml(row.id)}">Revocar</button>` : ''}</div></article>`;
     }).join('') : '<p class="events-empty">Todavía no se han emitido constancias.</p>';
     window._pasCertificateRows = rows;
-  } catch (error) { list.innerHTML = `<p class="events-empty">No se pudieron cargar las constancias: ${escapeHtml(error.message)}</p>`; }
+  } else {
+    list.innerHTML = `<p class="events-empty">No se pudieron cargar las constancias: ${escapeHtml(certResult.reason?.message || certResult.reason || 'Error desconocido')}</p>`;
+    console.error('PAS ID: error cargando constancias', certResult.reason);
+  }
+
+  if (peopleResult.status === 'rejected' || eventsResult.status === 'rejected') {
+    const errors = [];
+    if (peopleResult.status === 'rejected') errors.push(`Afiliados: ${peopleResult.reason?.message || peopleResult.reason}`);
+    if (eventsResult.status === 'rejected') errors.push(`Eventos: ${eventsResult.reason?.message || eventsResult.reason}`);
+    showToast(errors.join(' | '));
+  }
 }
 async function loadMyCertificates() {
   const target = document.getElementById('memberCertificatesList');
