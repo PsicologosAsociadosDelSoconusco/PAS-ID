@@ -1020,3 +1020,100 @@ document.getElementById('attendanceList')?.addEventListener('click', async event
   try { await pasBackend.removeAttendance(button.dataset.removeAttendance); showToast('Registro de asistencia eliminado.'); await loadAttendance(selectedEventId); }
   catch (error) { showToast(error.message || 'No se pudo quitar la asistencia.'); }
 });
+
+
+// Registro de asistencia mediante el QR público de la credencial PAS.
+let attendanceCameraStream = null;
+let attendanceScanActive = false;
+let attendanceDetector = null;
+let attendanceScanBusy = false;
+function stopAttendanceScanner() {
+  attendanceScanActive = false;
+  if (attendanceCameraStream) attendanceCameraStream.getTracks().forEach(track => track.stop());
+  attendanceCameraStream = null;
+  const video = document.getElementById('attendanceScannerVideo');
+  if (video) video.srcObject = null;
+  document.getElementById('attendanceScannerPanel')?.classList.add('hidden');
+}
+function identifierFromQr(rawValue) {
+  const raw = String(rawValue || '').trim();
+  try {
+    const url = new URL(raw);
+    const value = url.searchParams.get('verificar') || url.searchParams.get('folio') || url.searchParams.get('id');
+    if (value) return value.trim();
+  } catch (_) {}
+  return raw;
+}
+async function registerAttendanceByIdentifier(rawValue) {
+  if (!selectedEventId) throw new Error('Primero selecciona un evento.');
+  const identifier = identifierFromQr(rawValue);
+  if (!identifier) throw new Error('El QR no contiene un identificador válido.');
+  const members = await pasBackend.listMembers();
+  const normalized = identifier.toUpperCase().replace(/^PAS-/, 'PAS-');
+  const member = members.find(item =>
+    String(item.publicIdentifier || '').toUpperCase() === normalized ||
+    String(item.id || '').toUpperCase() === identifier.toUpperCase()
+  );
+  if (!member) throw new Error('No encontramos una credencial asociada a ese QR o folio.');
+  if (effectiveStatus(member) !== 'Activo' || member.membershipStatus !== 'active') {
+    throw new Error(`No se puede registrar: la membresía o credencial de ${member.name} no está vigente (${effectiveStatus(member)}).`);
+  }
+  await pasBackend.addAttendance(selectedEventId, member.backendId);
+  await loadAttendance(selectedEventId);
+  showToast(`Asistencia registrada: ${member.name}.`);
+  return member;
+}
+async function startAttendanceScanner() {
+  const panel = document.getElementById('attendanceScannerPanel');
+  const status = document.getElementById('attendanceScannerStatus');
+  if (!selectedEventId) return showToast('Selecciona primero el evento.');
+  if (!navigator.mediaDevices?.getUserMedia) {
+    panel.classList.remove('hidden'); status.textContent = 'Este navegador no permite acceder a la cámara. Usa la captura manual de folio o identificador.'; return;
+  }
+  if (!('BarcodeDetector' in window)) {
+    panel.classList.remove('hidden'); status.textContent = 'El lector QR automático no está disponible en este navegador. Usa la captura manual de folio o identificador.'; return;
+  }
+  try {
+    attendanceDetector = new BarcodeDetector({ formats: ['qr_code'] });
+    attendanceCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    const video = document.getElementById('attendanceScannerVideo');
+    video.srcObject = attendanceCameraStream;
+    await video.play();
+    panel.classList.remove('hidden');
+    status.textContent = 'Apunta la cámara al QR de la credencial.';
+    attendanceScanActive = true;
+    scanAttendanceFrame();
+  } catch (error) {
+    stopAttendanceScanner();
+    panel.classList.remove('hidden');
+    status.textContent = error.name === 'NotAllowedError' ? 'Permite el acceso a la cámara en tu navegador y vuelve a intentarlo.' : `No se pudo iniciar la cámara: ${error.message || 'error desconocido'}. También puedes capturar el folio manualmente.`;
+  }
+}
+async function scanAttendanceFrame() {
+  if (!attendanceScanActive) return;
+  const video = document.getElementById('attendanceScannerVideo');
+  try {
+    if (!attendanceScanBusy && video?.readyState >= 2) {
+      const codes = await attendanceDetector.detect(video);
+      if (codes.length && codes[0].rawValue) {
+        attendanceScanBusy = true;
+        document.getElementById('attendanceScannerStatus').textContent = 'QR detectado. Validando credencial…';
+        try { await registerAttendanceByIdentifier(codes[0].rawValue); stopAttendanceScanner(); }
+        catch (error) { document.getElementById('attendanceScannerStatus').textContent = error.message; attendanceScanBusy = false; }
+      }
+    }
+  } catch (error) { document.getElementById('attendanceScannerStatus').textContent = `No se pudo leer el QR: ${error.message || ''}`; }
+  if (attendanceScanActive) requestAnimationFrame(scanAttendanceFrame);
+}
+document.getElementById('startAttendanceScanner')?.addEventListener('click', startAttendanceScanner);
+document.getElementById('stopAttendanceScanner')?.addEventListener('click', stopAttendanceScanner);
+document.getElementById('attendanceQrManualForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const input = document.getElementById('attendanceQrManual');
+  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try { await registerAttendanceByIdentifier(input.value); input.value = ''; }
+  catch (error) { showToast(/duplicate|unique/i.test(error.message) ? 'Este miembro ya tiene asistencia registrada en el evento.' : error.message); }
+  finally { submit.disabled = false; }
+});
+window.addEventListener('beforeunload', stopAttendanceScanner);
