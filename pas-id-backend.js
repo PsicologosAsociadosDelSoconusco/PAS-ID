@@ -235,6 +235,17 @@
         'verificación pública'
       );
       return Array.isArray(data) ? data[0] : data;
+    },
+
+    async verifyCertificate(certificateNumber) {
+      if (!configured) throw new Error('El servicio de verificación no está disponible.');
+      const data = await unwrap(
+        client.rpc('verify_pas_certificate', {
+          p_certificate_number: String(certificateNumber || '').trim()
+        }),
+        'verificación pública de constancia'
+      );
+      return Array.isArray(data) ? data[0] || null : data || null;
     }
   };
 

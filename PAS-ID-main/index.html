@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#132a48">
+  <meta name="description" content="PAS ID · Plataforma de identidad, credenciales y gestión institucional de Psicólogos Asociados del Soconusco.">
+  <title>PAS ID · Plataforma institucional</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="demo-ribbon"><span class="pulse-dot"></span> PLATAFORMA INSTITUCIONAL · PAS ID</div>
+
+  <section id="loginScreen" class="login-screen">
+    <div class="login-art">
+      <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
+      <div class="art-glow"></div>
+      <div class="art-copy">
+        <div class="brand-lockup light-brand"><img src="assets/pas-logo.png" alt="Logotipo PAS"><div><strong>PAS <span>ID</span></strong><small>PSICÓLOGOS ASOCIADOS DEL SOCONUSCO</small></div></div>
+        <div class="art-message"><span class="eyebrow light">IDENTIDAD · COMUNIDAD · CONFIANZA</span><h1>Tu comunidad profesional,<br><em>en conexión.</em></h1><p>PAS ID reúne la identidad institucional, las credenciales digitales y la consulta pública de membresías de Psicólogos Asociados del Soconusco.</p><div class="landing-pills"><span>Credenciales digitales</span><span>Verificación pública</span><span>Comunidad PAS</span></div></div>
+        <div class="art-foot"><span>LA CASA DEL PSICÓLOGO</span><span class="foot-line"></span><span>DONDE LA PSICOLOGÍA ABRAZA</span></div>
+      </div>
+      <div class="floating-card card-back"></div>
+      <div class="floating-card card-front"><div class="mini-card-top"><span>PAS ID</span><span class="mini-seal">✦</span></div><div class="mini-chip"></div><div class="mini-card-name">IDENTIDAD DIGITAL</div><div class="mini-card-bottom"><span>PSICÓLOGOS ASOCIADOS<br>DEL SOCONUSCO</span><b>01</b></div></div>
+    </div>
+    <div class="login-panel">
+      <div class="login-top"><span class="secure-mark"><svg viewBox="0 0 24 24"><path d="M12 2 4.5 5v6c0 5 3.2 9 7.5 11 4.3-2 7.5-6 7.5-11V5L12 2Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg></span><span>ACCESO A LA PLATAFORMA</span></div>
+      <div class="login-content"><span class="eyebrow">ESPACIO INSTITUCIONAL</span><h2>Bienvenido a<br><em>PAS ID.</em></h2><p class="muted">Ingresa a tu espacio de gestión institucional con tu cuenta autorizada por la Directiva de PAS.</p>
+        <div class="login-field"><label for="demoEmail">CORREO ELECTRÓNICO</label><div class="input-wrap"><span class="field-icon">✉</span><input id="demoEmail" type="email" placeholder="Tu correo institucional" autocomplete="username"></div></div>
+        <div class="login-field"><label for="demoPassword">CONTRASEÑA</label><div class="input-wrap"><span class="field-icon">⌑</span><input id="demoPassword" type="password" placeholder="••••••••••••" autocomplete="current-password"><button type="button" class="reveal-pass" id="togglePassword" aria-label="Mostrar contraseña">◉</button></div></div>
+        <button class="btn btn-primary login-button" id="enterDemo">Iniciar sesión <span>→</span></button>
+        <p class="login-hint"><span class="info-dot">i</span> Acceso protegido para cuentas institucionales autorizadas.</p>
+        <div class="public-access-card"><div><strong>¿Necesitas comprobar una credencial?</strong><span>Consulta el estado de una membresía sin iniciar sesión.</span></div><button class="text-button" id="publicAccess">Verificar credencial ↗</button></div>
+      </div>
+      <div class="login-footer"><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">← Sitio institucional PAS</a><span>© 2026 Psicólogos Asociados del Soconusco</span></div>
+    </div>
+  </section>
+
+  <section id="passwordSetupScreen" class="password-setup-screen hidden" aria-labelledby="passwordSetupTitle">
+    <div class="password-setup-card">
+      <a class="brand-lockup setup-brand" href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">
+        <img src="assets/pas-logo.png" alt="PAS">
+        <div><strong>PAS <span>ID</span></strong><small>ACCESO INSTITUCIONAL</small></div>
+      </a>
+      <div class="setup-mark" aria-hidden="true">✓</div>
+      <span class="eyebrow">ACTIVACIÓN DE CUENTA</span>
+      <h1 id="passwordSetupTitle">Configura tu <em>contraseña.</em></h1>
+      <p class="muted">Tu invitación fue validada. Elige una contraseña segura para completar la activación de tu cuenta PAS ID.</p>
+      <form id="passwordSetupForm" class="password-setup-form">
+        <div class="login-field">
+          <label for="setupPassword">NUEVA CONTRASEÑA</label>
+          <div class="input-wrap"><span class="field-icon">⌑</span><input id="setupPassword" type="password" minlength="12" autocomplete="new-password" required placeholder="Mínimo 12 caracteres"></div>
+        </div>
+        <div class="login-field">
+          <label for="setupPasswordConfirm">CONFIRMAR CONTRASEÑA</label>
+          <div class="input-wrap"><span class="field-icon">⌑</span><input id="setupPasswordConfirm" type="password" minlength="12" autocomplete="new-password" required placeholder="Repite tu contraseña"></div>
+        </div>
+        <p class="setup-password-help">Usa al menos 12 caracteres. Evita reutilizar contraseñas de otras cuentas.</p>
+        <p id="passwordSetupMessage" class="setup-message" role="status" aria-live="polite"></p>
+        <button id="saveSetupPassword" class="btn btn-primary login-button" type="submit">Guardar contraseña <span>→</span></button>
+      </form>
+      <p class="setup-footer">Si no solicitaste esta invitación, puedes cerrar esta ventana sin continuar.</p>
+    </div>
+  </section>
+
+  <section id="memberPortalScreen" class="member-portal hidden" aria-labelledby="memberPortalTitle">
+    <header class="member-portal-header">
+      <a class="brand-lockup" href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>PORTAL DEL AFILIADO</small></div></a>
+      <div class="member-portal-account"><span id="memberPortalAccountEmail"></span><button type="button" class="btn btn-ghost" id="memberSignOutButton">Salir</button></div>
+    </header>
+    <main class="member-portal-main">
+      <div class="member-portal-welcome"><div><span class="eyebrow">ESPACIO PERSONAL · PAS</span><h1 id="memberPortalTitle">Mi expediente <em>institucional.</em></h1><p>Consulta tu información, tu credencial digital y el estado de tu membresía.</p></div><span class="member-portal-type" id="memberPortalType">Afiliado</span></div>
+      <section class="member-portal-grid">
+        <article class="member-portal-card member-portal-identity">
+          <div class="member-portal-card-head"><span class="eyebrow">EXPEDIENTE DIGITAL</span><span id="memberPortalStatus" class="status-pill status-active">Activo</span></div>
+          <h2 id="memberPortalName">—</h2>
+          <p class="member-portal-folio" id="memberPortalFolio">—</p>
+          <div class="member-portal-facts"><div><span>FECHA DE INGRESO</span><b id="memberPortalIssued">—</b></div><div><span>VIGENCIA</span><b id="memberPortalExpires">—</b></div><div><span>ESPECIALIDAD</span><b id="memberPortalSpecialty">Por completar</b></div><div><span>CÉDULA PROFESIONAL</span><b id="memberPortalLicense">Por completar</b></div></div>
+        </article>
+        <article class="member-portal-card member-portal-credential">
+          <div class="member-portal-card-head"><span class="eyebrow">CREDENCIAL DIGITAL</span><span class="credential-live-label">VERIFICABLE EN LÍNEA</span></div>
+          <div class="member-credential-row"><div><span>IDENTIFICADOR</span><b id="memberPortalCredential">—</b></div><button class="btn btn-outline" id="copyMemberCredential" type="button">Copiar</button></div>
+          <div class="member-qr-area"><canvas id="memberPortalQrCanvas" width="168" height="168" aria-label="Código QR de verificación"></canvas><div><b>Tu código de verificación</b><p>El QR abre la consulta pública de tu credencial. No contiene datos personales privados.</p><a id="memberPortalVerifyLink" href="#" target="_blank" rel="noopener">Abrir verificación pública ↗</a></div></div>
+        </article>
+      </section>
+      <section class="member-portal-card member-events-card" aria-labelledby="memberEventsHeading">
+        <div class="member-portal-section-head"><div><span class="eyebrow">COMUNIDAD Y PARTICIPACIÓN</span><h2 id="memberEventsHeading">Próximos eventos PAS</h2><p>Consulta las actividades publicadas por la Directiva y revisa tu participación.</p></div></div>
+        <div id="memberPublishedEvents" class="member-events-list" aria-live="polite"><p class="muted">Cargando eventos publicados…</p></div>
+        <div class="member-portal-section-head member-attendance-heading"><div><span class="eyebrow">MI PARTICIPACIÓN</span><h2>Mi historial de asistencia</h2></div></div>
+        <div id="memberAttendanceHistory" class="member-events-list" aria-live="polite"><p class="muted">Cargando tu historial…</p></div>
+      </section>
+      <section class="member-portal-card member-contact-card">
+        <div class="member-portal-section-head"><div><span class="eyebrow">DATOS DE CONTACTO Y PERFIL</span><h2>Mi información</h2><p>Los cambios se envían a revisión de la Directiva antes de actualizar tu expediente.</p></div></div>
+        <form id="profileChangeForm" class="member-profile-form">
+          <div class="form-field"><label for="profileEmail">CORREO DE CONTACTO</label><input id="profileEmail" type="email" maxlength="254" autocomplete="email"></div>
+          <div class="form-field"><label for="profilePhone">TELÉFONO</label><input id="profilePhone" type="tel" maxlength="40" autocomplete="tel"></div>
+          <div class="form-field"><label for="profileLicense">CÉDULA PROFESIONAL</label><input id="profileLicense" maxlength="80"></div>
+          <div class="form-field"><label for="profileSpecialty">ÁREA / ESPECIALIDAD</label><input id="profileSpecialty" maxlength="160"></div>
+          <div class="form-field"><label for="profileCity">MUNICIPIO</label><input id="profileCity" maxlength="100"></div>
+          <div class="form-field"><label for="profileState">ESTADO</label><input id="profileState" maxlength="100"></div>
+          <div class="form-field full"><label for="profileAbout">PRESENTACIÓN PROFESIONAL (OPCIONAL)</label><textarea id="profileAbout" rows="3" maxlength="300"></textarea></div>
+          <div class="member-profile-submit"><small>La información de este expediente no se muestra en la consulta pública de credenciales.</small><button type="submit" class="btn btn-primary" id="submitProfileChanges">Enviar actualización a Directiva →</button></div>
+        </form>
+      </section>
+      <section class="member-portal-card member-request-card"><div class="member-portal-section-head"><div><span class="eyebrow">SEGUIMIENTO</span><h2>Mis solicitudes</h2></div></div><div id="memberRequestsList" class="member-request-list"><p class="muted">No hay solicitudes registradas.</p></div></section>
+    </main>
+    <footer class="member-portal-footer"><span>PAS ID · Psicólogos Asociados del Soconusco</span><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">Sitio institucional ↗</a></footer>
+  </section>
+
+  <section id="publicScreen" class="public-screen hidden">
+    <header class="public-header"><a class="brand-lockup" href="#"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>VERIFICACIÓN INSTITUCIONAL</small></div></a><button id="backToLogin" class="btn btn-ghost">← Inicio</button></header>
+    <main class="verify-main"><div class="verify-kicker"><span class="status-dot"></span> CONSULTA PÚBLICA</div><h1>Verifica una<br><em>credencial PAS.</em></h1><p class="muted">Introduce el folio histórico o identificador aleatorio para consultar el estado vigente en la base de datos institucional.</p>
+      <form id="publicVerifyForm" class="verify-search"><label for="publicVerifyInput">FOLIO O IDENTIFICADOR</label><div class="search-combo"><input id="publicVerifyInput" placeholder="Ej. 0000001" autocomplete="off"><button class="btn btn-primary" type="submit">Verificar <span>→</span></button></div></form>
+      <div id="publicVerifyResult" class="verify-result empty-result"><div class="verify-empty-icon">⌕</div><strong>Consulta de credencial</strong><span>El resultado aparecerá aquí.</span></div>
+      <div class="verify-legal"><span>ⓘ</span><p>Esta consulta muestra únicamente información institucional autorizada. No sustituye una identificación oficial ni acredita por sí misma el ejercicio profesional.</p></div>
+    </main>
+    <footer class="public-footer"><span>PAS ID · Psicólogos Asociados del Soconusco</span><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">Sitio institucional ↗</a></footer>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>IDENTIDAD INSTITUCIONAL</small></div><button class="mobile-close" id="closeSidebar" aria-label="Cerrar menú">×</button></div>
+      <div class="workspace-label">ESPACIO DE TRABAJO</div>
+      <nav class="main-nav" aria-label="Menú principal">
+        <button class="nav-item active" data-view="overview"><span class="nav-icon">◫</span>Resumen</button>
+        <div class="nav-section-label">GESTIÓN INSTITUCIONAL</div>
+        <button class="nav-item" data-view="members"><span class="nav-icon">♙</span>Directorio de miembros <span class="nav-count" id="navMemberCount">3</span></button>
+        <button class="nav-item" data-view="credentials"><span class="nav-icon">▤</span>Credenciales</button>
+        <button class="nav-item" data-view="events"><span class="nav-icon">▦</span>Eventos y asistencia</button>
+        <button class="nav-item" data-view="certificates"><span class="nav-icon">♧</span>Constancias</button>
+        <div class="nav-section-label">CONSULTA</div>
+        <button class="nav-item" data-view="verification"><span class="nav-icon">⌕</span>Verificar credencial</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="help-card"><span class="help-icon">✦</span><strong>Identidad PAS</strong><p>Una comunidad profesional que crece en conjunto.</p><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">Visitar sitio ↗</a></div><button class="nav-item settings-link" data-view="settings"><span class="nav-icon">⚙</span>Configuración</button><div class="sidebar-version">PAS ID · Plataforma institucional</div></div>
+    </aside>
+    <div class="sidebar-scrim" id="sidebarScrim"></div>
+    <main class="main-area">
+      <header class="topbar"><button class="mobile-menu" id="openSidebar" aria-label="Abrir menú">☰</button><div class="breadcrumb"><span>Plataforma</span><b>/</b><strong id="breadcrumbCurrent">Resumen</strong></div><div class="topbar-actions"><span class="top-date" id="todayLabel"></span><button class="icon-button" title="Centro de notificaciones" aria-label="Notificaciones">♧<i></i></button><div class="user-chip"><div class="user-avatar">DP</div><div><strong id="activeUserName">Directiva PAS</strong><small id="activeUserRole">Administración demo</small></div><span class="chevron">⌄</span></div><button class="btn btn-ghost hidden" id="signOutButton" type="button">Salir</button></div></header>
+      <div class="content-area">
+        <section class="view active" id="view-overview">
+          <div class="page-heading"><div><div class="eyebrow">CENTRO DE CONTROL <span class="gold-dash"></span></div><h1>Bienvenido a <em>PAS ID.</em></h1><p>Un espacio para gestionar la identidad, participación y comunidad de PAS.</p></div><button class="btn btn-primary" data-action="new-member"><span>＋</span> Registrar miembro</button></div>
+          <div class="overview-banner"><div class="banner-copy"><span class="banner-label">PLATAFORMA DE IDENTIDAD INSTITUCIONAL</span><h2>Una comunidad.<br><em>Una identidad conectada.</em></h2><p>Consulta, administra y verifica las credenciales de quienes forman parte de Psicólogos Asociados del Soconusco.</p><button class="banner-link" data-go="verification">Verificar una credencial <span>→</span></button></div><div class="banner-graphic"><div class="banner-orbit b-orbit-a"></div><div class="banner-orbit b-orbit-b"></div><div class="banner-medallion"><span class="medallion-leaf">✦</span><strong>PAS</strong><small>ID</small></div><div class="orbit-tag tag-one">NFC</div><div class="orbit-tag tag-two">QR</div><div class="orbit-tag tag-three">✓</div></div></div>
+          <div class="stats-grid">
+            <article class="stat-card"><div class="stat-top"><span>Total de miembros</span><span class="stat-icon blue">♙</span></div><strong id="statTotal">3</strong><small><span class="stat-neutral">Registros en directorio</span></small><div class="stat-line"><i style="width:100%"></i></div></article>
+            <article class="stat-card"><div class="stat-top"><span>Credenciales activas</span><span class="stat-icon green">✓</span></div><strong id="statActive">3</strong><small><span class="stat-positive">Estado vigente</span> en el prototipo</small><div class="stat-line green-line"><i id="activeLine" style="width:100%"></i></div></article>
+            <article class="stat-card"><div class="stat-top"><span>En revisión</span><span class="stat-icon gold">◷</span></div><strong id="statReview">0</strong><small>Sin trámites pendientes</small><div class="stat-line gold-line"><i style="width:0%"></i></div></article>
+            <article class="stat-card"><div class="stat-top"><span>No vigentes</span><span class="stat-icon red">⊘</span></div><strong id="statInactive">0</strong><small>Requieren seguimiento</small><div class="stat-line red-line"><i id="inactiveLine" style="width:0%"></i></div></article>
+          </div>
+          <div class="dashboard-grid"><section class="panel recent-panel"><div class="panel-heading"><div><span class="eyebrow">REGISTROS</span><h3>Miembros recientes</h3></div><button class="text-button" data-go="members">Ver directorio <span>→</span></button></div><div id="recentMembers" class="recent-list"></div></section><section class="panel quick-panel"><div class="panel-heading"><div><span class="eyebrow">ACCESOS RÁPIDOS</span><h3>¿Qué necesitas hacer?</h3></div></div><div class="quick-actions"><button data-action="new-member"><span class="quick-icon gold-bg">＋</span><span><b>Registrar miembro</b><small>Dar de alta una nueva persona</small></span><i>→</i></button><button data-go="verification"><span class="quick-icon blue-bg">⌕</span><span><b>Verificar credencial</b><small>Consultar un folio o identificador</small></span><i>→</i></button><button data-go="credentials"><span class="quick-icon green-bg">▤</span><span><b>Ver credenciales</b><small>Consultar los registros emitidos</small></span><i>→</i></button><button data-go="events"><span class="quick-icon violet-bg">▦</span><span><b>Gestionar actividades</b><small>Eventos y control de asistencia</small></span><i>→</i></button></div></section></div>
+          <div class="bottom-note"><span class="note-icon">i</span><p><strong>Entorno de demostración.</strong> La conexión institucional permite consultar los registros y estados de membresía en la base de datos de PAS ID.</p><span class="note-tag">DEMO</span></div>
+        </section>
+
+        <section class="view" id="view-members">
+          <div class="page-heading"><div><div class="eyebrow">GESTIÓN INSTITUCIONAL <span class="gold-dash"></span></div><h1>Directorio de <em>miembros.</em></h1><p>Consulta y administra los registros de la comunidad PAS.</p></div><button class="btn btn-primary" data-action="new-member"><span>＋</span> Registrar miembro</button></div>
+          <div class="toolbar panel"><div class="table-search"><span>⌕</span><input id="memberSearch" type="search" placeholder="Buscar por nombre, folio o identificador..."></div><select id="statusFilter" aria-label="Filtrar por estado"><option value="all">Todos los estados</option><option>Activo</option><option>Suspendido</option><option>Revocado</option><option>Vencido</option><option>Inactivo</option><option>Sustituido</option></select><span class="toolbar-count" id="directoryCount">3 registros</span></div>
+          <div class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>MIEMBRO</th><th>FOLIO / IDENTIFICADOR</th><th>TIPO</th><th>VIGENCIA</th><th>ESTADO</th><th>CUENTA</th><th></th></tr></thead><tbody id="membersTable"></tbody></table></div><div id="emptyMembers" class="empty-state hidden"><span>⌕</span><strong>No encontramos registros</strong><p>Prueba con otro nombre o cambia el filtro.</p></div></div>
+          <section class="panel profile-requests-panel"><div class="panel-heading"><div><span class="eyebrow">ATENCIÓN INSTITUCIONAL</span><h3>Solicitudes de actualización de expedientes</h3></div><span class="toolbar-count" id="profileRequestCount">0 pendientes</span></div><div id="profileRequestsList" class="profile-requests-list"><p class="muted">Las solicitudes de afiliados aparecerán aquí.</p></div></section>
+          <div class="bottom-note"><span class="note-icon">i</span><p>Los folios históricos de los miembros fundadores se conservan. Las nuevas altas reciben identificadores aleatorios que pueden administrarse desde la Directiva.</p></div>
+        </section>
+
+        <section class="view" id="view-credentials">
+          <div class="page-heading"><div><div class="eyebrow">IDENTIDAD DIGITAL <span class="gold-dash"></span></div><h1>Credenciales <em>PAS.</em></h1><p>Vista conceptual de las credenciales físicas y digitales vinculadas a PAS ID.</p></div><button class="btn btn-outline" data-go="verification">⌕ Verificar credencial</button></div>
+          <div class="credential-layout"><div class="credential-showcase"><div class="credential-topline"><span>CREDENCIAL DIGITAL · VISTA PREVIA</span><span class="preview-pill" id="credentialPreviewBadge">CREDENCIAL EN LÍNEA</span></div><div class="digital-card"><div class="digital-card-glow"></div><div class="digital-card-head"><img src="assets/pas-logo.png" alt="PAS"><div><b>PAS <span>ID</span></b><small>PSICÓLOGOS ASOCIADOS DEL SOCONUSCO</small></div><div class="card-star">✦</div></div><div class="digital-card-middle"><div class="member-monogram" id="credentialPreviewMonogram">PAS</div><div class="member-card-data"><span class="card-label" id="credentialPreviewType">MIEMBRO PAS</span><h2 id="credentialPreviewName">Selecciona un miembro</h2><span class="card-id">FOLIO <b id="credentialPreviewId">—</b></span></div></div><div class="digital-card-foot"><div><span>EXPEDICIÓN</span><b id="credentialPreviewIssued">—</b></div><div><span>VIGENCIA</span><b id="credentialPreviewExpires">—</b></div><div class="card-status" id="credentialPreviewStatus"><i></i> —</div></div><div class="card-watermark">PAS</div></div><div class="credential-callout"><span>⌑</span><p>La tarjeta se alimenta del expediente seleccionado. El QR y el enlace que se copia abren la misma consulta pública; esa URL también puede grabarse en una etiqueta NFC compatible.</p></div></div>
+            <div class="credential-side"><div class="panel"><span class="eyebrow">VINCULACIÓN DIGITAL</span><h3>Una credencial.<br>Dos formas de verificar.</h3><div class="connection-item"><div class="connection-icon nfc-icon">⌁</div><div><b>NFC</b><p>Acerca la credencial a un teléfono compatible para abrir la ficha de verificación.</p></div></div><div class="connection-item"><div class="connection-icon qr-icon">▦</div><div><b>Código QR</b><p>Escanea el código impreso para consultar la misma ficha pública.</p></div></div><div class="qr-placeholder qr-live-box"><canvas id="credentialPreviewQr" width="112" height="112" aria-label="Código QR de la credencial seleccionada"></canvas><div><b id="credentialQrHeading">QR de verificación</b><small id="credentialQrHelp">El QR abrirá la consulta pública de esta credencial.</small><button type="button" class="text-button" id="copyCredentialPreviewUrl">Copiar enlace QR ↗</button></div></div></div><div class="panel credential-rules"><span class="eyebrow">CRITERIOS DE SEGURIDAD</span><ul><li>El estado se consulta desde el registro vigente.</li><li>Los identificadores nuevos podrán revocarse.</li><li>La credencial física no expone datos privados.</li></ul></div></div></div>
+          <div class="panel credential-register"><div class="panel-heading"><div><span class="eyebrow">REGISTROS EMITIDOS</span><h3>Credenciales en el directorio</h3></div><span class="toolbar-count" id="credentialCount">3 registros</span></div><div id="credentialList" class="credential-list"></div></div>
+        </section>
+
+        <section class="view" id="view-events">
+          <div class="page-heading"><div><div class="eyebrow">COMUNIDAD Y PARTICIPACIÓN <span class="gold-dash"></span></div><h1>Eventos y <em>asistencia.</em></h1><p>Administra actividades y registra la participación de los miembros de PAS.</p></div><button class="btn btn-primary" id="openCreateEvent">＋ Crear evento</button></div>
+          <div id="eventsNotice" class="events-notice">Los registros se guardan en la base institucional de PAS ID. El control de asistencia de esta versión es manual; el escaneo QR se integrará en una siguiente actualización.</div>
+          <div class="events-workspace"><section class="panel events-list-panel"><div class="panel-heading"><div><span class="eyebrow">AGENDA INSTITUCIONAL</span><h3>Eventos registrados</h3></div><button class="text-button" id="refreshEvents">Actualizar ↻</button></div><div id="eventsList" class="events-list"><p class="muted">Cargando eventos…</p></div></section>
+          <section class="panel attendance-panel"><div class="panel-heading"><div><span class="eyebrow">CONTROL DE PARTICIPACIÓN</span><h3>Registro de asistencia</h3></div></div><div id="attendanceEmpty" class="events-empty">Selecciona un evento para consultar y registrar participantes.</div><div id="attendanceContent" class="hidden"><div class="selected-event-title" id="selectedEventTitle"></div><form id="attendanceForm" class="attendance-form"><label for="attendanceMember">Seleccionar miembro</label><div class="search-combo"><select id="attendanceMember" required><option value="">Selecciona un miembro…</option></select><button class="btn btn-primary" type="submit">Registrar</button></div></form><div class="attendance-count" id="attendanceCount">0 asistentes</div><div id="attendanceList" class="attendance-list"></div></div></section></div>
+          <div id="createEventPanel" class="panel create-event-panel hidden"><div class="panel-heading"><div><span class="eyebrow">NUEVA ACTIVIDAD</span><h3>Crear evento</h3></div><button class="text-button" id="closeCreateEvent">Cerrar ×</button></div><form id="createEventForm"><div class="form-grid"><div class="form-field"><label for="eventTitle">Nombre del evento *</label><input id="eventTitle" maxlength="120" required placeholder="Ej. Jornada de salud mental"></div><div class="form-field"><label for="eventLocation">Lugar</label><input id="eventLocation" maxlength="180" placeholder="Lugar o modalidad"></div><div class="form-field"><label for="eventStart">Fecha y hora *</label><input id="eventStart" type="datetime-local" required></div><div class="form-field"><label for="eventEnd">Fecha y hora de término</label><input id="eventEnd" type="datetime-local"></div><div class="form-field full"><label for="eventDescription">Descripción</label><input id="eventDescription" maxlength="500" placeholder="Información adicional para los miembros"></div><div class="form-field full"><label class="event-publish-label"><input id="eventPublished" type="checkbox"> Publicar para que los afiliados puedan consultarlo</label></div></div><div class="modal-actions"><button class="btn btn-primary" type="submit">Guardar evento →</button></div></form></div>
+        </section>
+        <section class="view" id="view-certificates">
+          <div class="page-heading"><div><div class="eyebrow">RECONOCIMIENTO Y FORMACIÓN <span class="gold-dash"></span></div><h1>Constancias y <em>certificados.</em></h1><p>Historial de participación y documentos emitidos por PAS.</p></div><span class="coming-tag">MÓDULO SIGUIENTE</span></div>
+          <div class="module-empty panel"><div class="module-art certificate-art"><div class="module-circle"><span>♧</span></div><i class="spark s1">✦</i><i class="spark s2">✦</i></div><span class="eyebrow">PRÓXIMA ETAPA</span><h2>Cada experiencia,<br><em>un logro que permanece.</em></h2><p>Permitirá generar constancias vinculadas a los miembros y a los eventos, con folios únicos y mecanismos de consulta.</p><div class="module-features"><span>✧ Emisión de constancias</span><span>⌕ Verificación documental</span><span>↓ Descarga PDF</span></div></div>
+        </section>
+        <section class="view" id="view-verification">
+          <div class="page-heading"><div><div class="eyebrow">CONSULTA ABIERTA <span class="gold-dash"></span></div><h1>Verificación de <em>credenciales.</em></h1><p>Comprueba en línea el estado vigente de una credencial PAS.</p></div><span class="public-tag">ACCESO PÚBLICO</span></div>
+          <div class="verification-layout"><div class="panel verify-panel"><div class="verify-panel-icon">⌕</div><h2>Consultar identidad PAS</h2><p>Escribe el folio histórico o el identificador aleatorio de una nueva credencial.</p><form id="internalVerifyForm"><label for="internalVerifyInput">FOLIO O IDENTIFICADOR</label><div class="search-combo"><input id="internalVerifyInput" placeholder="Ej. 0000001"><button class="btn btn-primary" type="submit">Consultar →</button></div></form><div id="internalVerifyResult" class="internal-verify-result"><span class="muted">El resultado de la consulta aparecerá aquí.</span></div></div><div class="verify-side panel"><span class="eyebrow">¿CÓMO FUNCIONA?</span><h3>Verificación sencilla y actualizable.</h3><div class="verify-step"><span>01</span><p>Escanea el QR o acerca el teléfono a la credencial NFC.</p></div><div class="verify-step"><span>02</span><p>PAS ID consulta el registro asociado al identificador.</p></div><div class="verify-step"><span>03</span><p>Se muestra el estado: activo, suspendido, vencido o revocado.</p></div><div class="verify-disclaimer">En producción, esta consulta estará conectada a la base de datos central, no a los datos locales del navegador.</div></div></div>
+        </section>
+        <section class="view" id="view-settings">
+          <div class="page-heading"><div><div class="eyebrow">PLATAFORMA <span class="gold-dash"></span></div><h1>Configuración <em>general.</em></h1><p>Información de referencia para la futura puesta en marcha de PAS ID.</p></div></div>
+          <div class="settings-grid"><div class="panel settings-card"><span class="eyebrow">IDENTIDAD</span><h3>Psicólogos Asociados del Soconusco</h3><p>La plataforma mantiene el nombre, logotipo y paleta cromática institucional.</p><div class="swatches"><i style="background:#1e3f66"></i><i style="background:#132a48"></i><i style="background:#e0a428"></i><i style="background:#5a8a3a"></i><i style="background:#faf6ee"></i></div><small>Azul marino · Dorado · Verde · Crema</small></div><div class="panel settings-card"><span class="eyebrow">INFRAESTRUCTURA PROPUESTA</span><h3>Servicios por conectar</h3><ul class="integration-list"><li><span>Base de datos</span><b>Supabase</b><em>Pendiente</em></li><li><span>Autenticación</span><b>Supabase Auth</b><em>Pendiente</em></li><li><span>Hospedaje</span><b>GitHub Pages / dominio</b><em>Pendiente</em></li><li><span>QR y NFC</span><b>URL de verificación</b><em>Pendiente</em></li></ul></div></div>
+          <div class="bottom-note"><span class="note-icon">!</span><p><strong>No es todavía un sistema de producción.</strong> No utilizar esta demostración para emitir, validar o revocar credenciales oficiales. La conexión segura requiere configurar autenticación, políticas de acceso y base de datos.</p></div>
+        </section>
+      </div>
+      <footer class="app-footer"><span>© 2026 Psicólogos Asociados del Soconusco</span><span><i></i> PAS ID · Plataforma institucional</span></footer>
+    </main>
+  </div>
+
+  <div id="memberModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="memberModalTitle"><div class="modal"><div class="modal-head"><div><span class="eyebrow">DIRECTORIO INSTITUCIONAL</span><h2 id="memberModalTitle">Registrar miembro</h2></div><button class="modal-close" data-close-modal aria-label="Cerrar">×</button></div><form id="memberForm"><div class="form-grid"><div class="form-field full"><label for="newName">NOMBRE COMPLETO *</label><input id="newName" required maxlength="100" placeholder="Nombre y apellidos"></div><div class="form-field"><label for="newType">TIPO DE MEMBRESÍA</label><select id="newType"><option>Afiliado</option><option>Colaborador</option><option>Directiva</option></select></div><div class="form-field"><label for="newExpiry">VIGENCIA HASTA</label><input id="newExpiry" type="date" value="2027-11-04"></div><div class="form-field full"><div class="generated-id"><span><small>IDENTIFICADOR ALEATORIO</small><b id="generatedId">Se generará al registrar</b></span><span class="generated-lock">⌑</span></div><small class="field-help">Los nuevos registros reciben un identificador no consecutivo y único generado por el servidor.</small></div></div><div class="modal-actions"><button type="button" class="btn btn-ghost" data-close-modal>Cancelar</button><button class="btn btn-primary" type="submit">Registrar miembro <span>→</span></button></div></form></div></div>
+
+  <div id="detailModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle"><div class="modal detail-modal"><div class="modal-head"><div><span class="eyebrow">REGISTRO DE MIEMBRO</span><h2 id="detailModalTitle">Gestionar miembro</h2></div><button class="modal-close" data-close-detail aria-label="Cerrar">×</button></div><div id="detailContent"></div></div></div>
+  <div id="issuedModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="issuedModalTitle"><div class="modal"><div class="modal-head"><div><span class="eyebrow">CREDENCIAL GENERADA</span><h2 id="issuedModalTitle">Identificador PAS ID</h2></div><button class="modal-close" data-close-issued aria-label="Cerrar">×</button></div><p class="muted">Este código identifica la credencial nueva. Consérvalo para incorporarlo al QR y al chip NFC de la tarjeta.</p><div class="generated-id"><span><small>IDENTIFICADOR ALEATORIO</small><b id="issuedIdentifier">—</b></span><span class="generated-lock">⌑</span></div><div class="generated-id"><span><small>URL DE VERIFICACIÓN PARA QR / NFC</small><b id="issuedVerificationUrl" class="verification-url">—</b></span></div><div class="modal-actions"><button type="button" class="btn btn-ghost" id="copyIssuedIdentifier">Copiar código</button><button type="button" class="btn btn-ghost" id="copyIssuedUrl">Copiar enlace</button><button type="button" class="btn btn-primary" data-close-issued>Listo</button></div></div></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="config.js"></script>
+  <script src="pas-id-backend.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

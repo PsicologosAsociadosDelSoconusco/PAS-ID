@@ -959,6 +959,72 @@ const authFlowError = authHashParams.get('error_description') || urlParams.get('
   }
 })();
 
+async function renderPublicCertificateVerification(certificateNumber) {
+  const target = document.getElementById('publicVerifyResult');
+  const form = document.getElementById('publicVerifyForm');
+  const heading = document.querySelector('#publicScreen .verify-main h1');
+  const intro = document.querySelector('#publicScreen .verify-main > .muted');
+  if (form) form.classList.add('hidden');
+  if (heading) heading.innerHTML = 'Verificación de<br><em>constancia PAS.</em>';
+  if (intro) intro.textContent = 'Consulta pública de autenticidad documental. El resultado se obtiene del registro institucional de PAS ID.';
+  openPublicScreen();
+  if (!target) return;
+  target.classList.remove('empty-result');
+  target.innerHTML = '<div class="verification-not-found"><b>Consultando registro institucional…</b><span>Estamos comprobando el folio de la constancia.</span></div>';
+
+  const folio = String(certificateNumber || '').trim();
+  if (!folio) {
+    target.innerHTML = '<div class="verification-not-found"><b>Folio no proporcionado.</b><span>El enlace no contiene un número de constancia válido.</span></div>';
+    return;
+  }
+  if (!connectedMode || !pasBackend?.verifyCertificate) {
+    target.innerHTML = '<div class="verification-not-found"><b>Servicio de verificación no disponible.</b><span>No fue posible conectar con la base institucional. Inténtalo más tarde.</span></div>';
+    return;
+  }
+
+  try {
+    const result = await pasBackend.verifyCertificate(folio);
+    if (!result) {
+      target.innerHTML = `<div class="verification-not-found"><b>Constancia no encontrada.</b><span>El folio ${escapeHtml(folio)} no aparece en el registro institucional de PAS.</span></div>`;
+      return;
+    }
+    const revoked = Boolean(result.revoked_at);
+    const statusLabel = revoked ? 'REVOCADA' : 'AUTÉNTICA · VIGENTE';
+    const statusColor = revoked ? '#a33b35' : '#28734d';
+    const issued = result.issued_at
+      ? new Date(result.issued_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+      : 'No disponible';
+    const eventLine = result.event_title
+      ? `<div class="verification-data"><div><span>ACTIVIDAD / EVENTO</span><b>${escapeHtml(result.event_title)}</b></div></div>`
+      : '';
+    target.innerHTML = `
+      <article class="verification-card-result" style="text-align:left">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <span class="eyebrow">RESULTADO DE CONSULTA DOCUMENTAL</span>
+          <span style="display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;background:${revoked ? '#f9e9e7' : '#eaf4ed'};color:${statusColor};font:700 12px Arial,sans-serif">${revoked ? '●' : '✓'} ${statusLabel}</span>
+        </div>
+        <h3 style="margin:18px 0 6px">${escapeHtml(result.full_name || 'Nombre no disponible')}</h3>
+        <p style="margin:0 0 18px;color:#718096">Constancia emitida por Psicólogos Asociados del Soconusco</p>
+        <div class="verification-data">
+          <div><span>FOLIO DE CONSTANCIA</span><b>${escapeHtml(result.certificate_number || folio)}</b></div>
+          <div><span>CONCEPTO</span><b>${escapeHtml(result.title || 'No disponible')}</b></div>
+          <div><span>FECHA DE EMISIÓN</span><b>${escapeHtml(issued)}</b></div>
+        </div>
+        ${eventLine}
+        <strong class="verification-label" style="display:block;margin-top:18px;color:${statusColor}">${revoked ? 'Este documento fue revocado por la Directiva de PAS.' : 'El folio coincide con un registro institucional y no tiene revocación registrada.'}</strong>
+        <small class="verification-footnote">Consulta pública en línea · PAS ID · Psicólogos Asociados del Soconusco</small>
+      </article>`;
+  } catch (error) {
+    console.error('PAS ID: error verificando constancia públicamente', error);
+    target.innerHTML = '<div class="verification-not-found"><b>No fue posible completar la verificación.</b><span>El servicio institucional presentó un error. Inténtalo nuevamente más tarde.</span></div>';
+  }
+}
+
+// ?verificar-constancia= consulta el registro público documental de Supabase.
+if (urlParams.has('verificar-constancia')) {
+  renderPublicCertificateVerification(urlParams.get('verificar-constancia'));
+}
+
 // ?verificar= acepta folios históricos o identificadores aleatorios del QR/NFC.
 if (urlParams.has('verificar')) {
   openPublicScreen();
