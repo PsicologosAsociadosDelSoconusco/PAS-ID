@@ -221,3 +221,21 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 .verification-profile-about{margin-top:14px;padding:16px;border-left:3px solid var(--gold);background:#fffaf0;border-radius:0 9px 9px 0}
 .verification-profile-about p{font-size:11px;line-height:1.8;color:#526477;margin:0;white-space:pre-line}
 @media(max-width:560px){.verification-public-profile .verification-data{grid-template-columns:1fr}}
+
+/* Fotografía profesional del perfil público PAS ID */
+.profile-photo-editor{display:flex;align-items:center;gap:15px;padding:14px;border:1px solid #e2e8ef;border-radius:12px;background:#f8fafc}
+.profile-photo-preview-wrap{width:88px;height:88px;flex:0 0 88px;border-radius:12px;overflow:hidden;background:#eaf0f5;display:grid;place-items:center}
+.profile-photo-preview{width:100%;height:100%;object-fit:cover}
+.profile-photo-placeholder{font:800 18px 'Manrope',sans-serif;color:#173655;letter-spacing:.08em}
+.profile-photo-controls{min-width:0;display:flex;flex-direction:column;gap:7px;flex:1}
+.profile-photo-controls>label:first-child{font-size:8px;letter-spacing:.1em;font-weight:800;color:#718093}
+.profile-photo-controls input[type=file]{font-size:10px;max-width:100%}
+.profile-photo-consent{display:flex;align-items:flex-start;gap:7px;font-size:10px;color:#526477;line-height:1.5}
+.profile-photo-consent input{width:auto!important;height:auto!important;margin-top:2px}
+.verification-public-identity{display:flex;align-items:center;gap:15px;margin:14px 0}
+.verification-public-identity img{width:88px;height:88px;object-fit:cover;border-radius:12px;border:1px solid #e1e7ed}
+.verification-public-identity h3{margin:0 0 5px}
+.verification-public-identity p{margin:0}
+@media(max-width:560px){.profile-photo-editor{align-items:flex-start;flex-direction:column}.verification-public-identity img{width:76px;height:76px}}
+
+.request-photo-change img{display:block;width:76px;height:76px;object-fit:cover;border-radius:9px;margin-top:7px;border:1px solid #e1e7ed}

@@ -83,6 +83,28 @@
       return unwrap(client.rpc('submit_my_pas_profile_change_request', { p_changes: changes }), 'solicitud de actualización');
     },
 
+    async uploadProfilePhoto(file, memberId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      if (!file || !memberId) throw new Error('Selecciona una fotografía válida.');
+      const allowed = ['image/jpeg','image/png','image/webp'];
+      if (!allowed.includes(file.type)) throw new Error('La fotografía debe estar en formato JPG, PNG o WEBP.');
+      if (file.size > 3 * 1024 * 1024) throw new Error('La fotografía no puede superar 3 MB.');
+      const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+      const path = `${memberId}/${crypto.randomUUID()}.${ext}`;
+      await unwrap(client.storage.from('pas-profile-photos').upload(path, file, { contentType:file.type, cacheControl:'3600', upsert:false }), 'carga de fotografía');
+      return path;
+    },
+
+    async submitProfilePhotoChangeRequest(photoPath) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('submit_my_pas_photo_change_request', { p_photo_path: photoPath }), 'solicitud de fotografía');
+    },
+
+    publicProfilePhotoUrl(path) {
+      if (!configured || !path) return '';
+      return client.storage.from('pas-profile-photos').getPublicUrl(path).data.publicUrl;
+    },
+
     async createInstitutionalRequest(payload) {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.rpc('submit_pas_request', { p_request: payload }), 'envío de solicitud');

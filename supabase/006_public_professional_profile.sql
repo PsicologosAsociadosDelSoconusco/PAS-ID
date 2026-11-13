@@ -5,6 +5,7 @@
 
 begin;
 
+
 create or replace function public.verify_pas_credential_public(p_identifier text)
 returns table (
   found boolean,

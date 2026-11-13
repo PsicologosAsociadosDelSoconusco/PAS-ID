@@ -259,7 +259,7 @@ function renderAll() {
   updateStats(); renderRecent(); renderMembers(); renderCredentials();
 }
 function profileChangeLabel(key) {
-  return ({contact_email:'Correo de contacto',phone:'Teléfono',professional_license:'Cédula profesional',specialty:'Área / especialidad',city:'Municipio',state:'Estado',about:'Presentación profesional'})[key] || key;
+  return ({contact_email:'Correo de contacto',phone:'Teléfono',professional_license:'Cédula profesional',specialty:'Área / especialidad',city:'Municipio',state:'Estado',about:'Presentación profesional',photo_path:'Fotografía profesional (pendiente de revisión)'})[key] || key;
 }
 async function loadProfileRequests() {
   const target = document.getElementById('profileRequestsList');
@@ -275,7 +275,7 @@ async function loadProfileRequests() {
     }
     target.innerHTML = requests.map(request => {
       const member = Array.isArray(request.members) ? request.members[0] : request.members;
-      const changes = Object.entries(request.requested_changes || {}).map(([key,value]) => `<div class="request-change"><span>${escapeHtml(profileChangeLabel(key))}</span><b>${escapeHtml(value || '—')}</b></div>`).join('');
+      const changes = Object.entries(request.requested_changes || {}).map(([key,value]) => key === 'photo_path' ? `<div class="request-change request-photo-change"><span>${escapeHtml(profileChangeLabel(key))}</span><img src="${escapeHtml(pasBackend.publicProfilePhotoUrl(value))}" alt="Fotografía propuesta" loading="lazy"></div>` : `<div class="request-change"><span>${escapeHtml(profileChangeLabel(key))}</span><b>${escapeHtml(value || '—')}</b></div>`).join('');
       const status = request.request_status === 'approved' ? 'Aprobada' : request.request_status === 'rejected' ? 'Rechazada' : 'Pendiente';
       return `<article class="profile-request-item"><div class="profile-request-head"><div><b>${escapeHtml(member?.full_name || 'Miembro PAS')}</b><small>${escapeHtml(member?.legacy_folio || member?.member_type || '')} · ${new Date(request.submitted_at).toLocaleDateString('es-MX')}</small></div><span class="request-status ${request.request_status}">${status}</span></div><div class="request-changes-grid">${changes}</div>${request.request_status === 'pending' ? `<div class="request-actions"><button type="button" class="btn btn-outline" data-review-request="${request.id}" data-decision="rejected">Rechazar</button><button type="button" class="btn btn-primary" data-review-request="${request.id}" data-decision="approved">Aprobar cambios</button></div>` : `<small class="request-response">${escapeHtml(request.admin_response || 'Solicitud atendida.')}</small>`}</article>`;
     }).join('');
@@ -397,7 +397,9 @@ async function renderVerification(value, targetId) {
         (result.city || result.state) ? `<div><span>UBICACIÓN</span><b>${escapeHtml([result.city, result.state].filter(Boolean).join(', '))}</b></div>` : ''
       ].filter(Boolean).join('');
       const publicAbout = result.about ? `<section class="verification-profile-about"><span class="eyebrow">PRESENTACIÓN PROFESIONAL</span><p>${escapeHtml(result.about)}</p></section>` : '';
-      target.innerHTML = `<div class="verification-card-result"><div class="verification-result-head"><span class="eyebrow">RESULTADO DE CONSULTA</span>${statusBadge(status)}</div><h3>${escapeHtml(result.full_name)}</h3><p>${escapeHtml(result.member_type)} · Psicólogos Asociados del Soconusco</p><div class="verification-data"><div><span>FOLIO / IDENTIFICADOR</span><b>${escapeHtml(folio)}</b></div><div><span>VIGENCIA</span><b>${escapeHtml(formatDate(result.expires_on ? isoDateToSpanish(result.expires_on) : ''))}</b></div></div>${publicProfile ? `<section class="verification-public-profile"><span class="eyebrow">PERFIL PROFESIONAL</span><div class="verification-data">${publicProfile}</div></section>` : ''}${publicAbout}<strong class="verification-label ${statusClass(status)}">${escapeHtml(label)}</strong><small class="verification-footnote">Consulta en línea del registro institucional PAS ID. Los datos de contacto permanecen privados.</small></div>`;
+      const photoUrl = result.photo_path ? pasBackend.publicProfilePhotoUrl(result.photo_path) : '';
+      const publicIdentity = `<div class="verification-public-identity">${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="Fotografía profesional de ${escapeHtml(result.full_name)}" loading="lazy">` : ''}<div><h3>${escapeHtml(result.full_name)}</h3><p>${escapeHtml(result.member_type)} · Psicólogos Asociados del Soconusco</p></div></div>`;
+      target.innerHTML = `<div class="verification-card-result"><div class="verification-result-head"><span class="eyebrow">RESULTADO DE CONSULTA</span>${statusBadge(status)}</div>${publicIdentity}<div class="verification-data"><div><span>FOLIO / IDENTIFICADOR</span><b>${escapeHtml(folio)}</b></div><div><span>VIGENCIA</span><b>${escapeHtml(formatDate(result.expires_on ? isoDateToSpanish(result.expires_on) : ''))}</b></div></div>${publicProfile ? `<section class="verification-public-profile"><span class="eyebrow">PERFIL PROFESIONAL</span><div class="verification-data">${publicProfile}</div></section>` : ''}${publicAbout}<strong class="verification-label ${statusClass(status)}">${escapeHtml(label)}</strong><small class="verification-footnote">Consulta en línea del registro institucional PAS ID. Los datos de contacto permanecen privados.</small></div>`;
     } catch (error) {
       console.error(error);
       target.innerHTML = `<div class="verification-not-found"><b>No fue posible completar la consulta.</b><span>Inténtalo nuevamente más tarde.</span></div>`;
@@ -540,6 +542,15 @@ function showMemberPortal(profile) {
     ctx.fillStyle = '#52677e'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('QR no disponible', canvas.width/2, canvas.height/2);
   }
+  const photoPreview = document.getElementById('profilePhotoPreview');
+  const photoPlaceholder = document.getElementById('profilePhotoPlaceholder');
+  const approvedPhotoUrl = detail.photo_path ? pasBackend.publicProfilePhotoUrl(detail.photo_path) : '';
+  if (photoPreview) { photoPreview.src = approvedPhotoUrl; photoPreview.classList.toggle('hidden', !approvedPhotoUrl); }
+  if (photoPlaceholder) photoPlaceholder.classList.toggle('hidden', Boolean(approvedPhotoUrl));
+  const photoInput = document.getElementById('profilePhotoFile');
+  const photoConsent = document.getElementById('profilePhotoConsent');
+  if (photoInput) photoInput.value = '';
+  if (photoConsent) photoConsent.checked = false;
   const fields = {
     profileEmail: detail.contact_email || signedInEmail || '',
     profilePhone: detail.phone || '',
@@ -684,6 +695,18 @@ document.getElementById('backToLogin').addEventListener('click', () => {
   document.getElementById('publicScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
 });
+document.getElementById('profilePhotoFile')?.addEventListener('change', event => {
+  const file = event.target.files?.[0];
+  const preview = document.getElementById('profilePhotoPreview');
+  const placeholder = document.getElementById('profilePhotoPlaceholder');
+  if (!file || !preview) return;
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 3 * 1024 * 1024) {
+    event.target.value = ''; showToast('Usa una imagen JPG, PNG o WEBP de máximo 3 MB.'); return;
+  }
+  preview.src = URL.createObjectURL(file); preview.classList.remove('hidden');
+  placeholder?.classList.add('hidden');
+});
+
 document.getElementById('profileChangeForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!currentMemberProfile) return;
@@ -698,16 +721,23 @@ document.getElementById('profileChangeForm').addEventListener('submit', async ev
     about: document.getElementById('profileAbout').value.trim()
   };
   const changes = Object.fromEntries(Object.entries(values).filter(([key,value]) => String(value) !== String(existing[key] || '')));
-  if (!Object.keys(changes).length) { showToast('No hay cambios nuevos para enviar.'); return; }
+  const photoFile = document.getElementById('profilePhotoFile')?.files?.[0] || null;
+  const photoConsent = Boolean(document.getElementById('profilePhotoConsent')?.checked);
+  if (photoFile && !photoConsent) { showToast('Debes autorizar expresamente la publicación de tu fotografía.'); return; }
+  if (!Object.keys(changes).length && !photoFile) { showToast('No hay cambios nuevos para enviar.'); return; }
   const button = document.getElementById('submitProfileChanges');
   button.disabled = true; button.textContent = 'Enviando solicitud…';
   try {
-    await pasBackend.submitProfileChangeRequest(changes);
+    if (Object.keys(changes).length) await pasBackend.submitProfileChangeRequest(changes);
+    if (photoFile) {
+      const photoPath = await pasBackend.uploadProfilePhoto(photoFile, currentMemberProfile.member.id);
+      await pasBackend.submitProfilePhotoChangeRequest(photoPath);
+    }
     currentMemberProfile = await pasBackend.getMyProfile();
     showMemberPortal(currentMemberProfile);
-    showToast('Solicitud enviada. La Directiva revisará los cambios.');
+    showToast('Solicitud enviada. La Directiva revisará tus cambios y fotografía.');
   } catch (error) {
-    showToast(error.message || 'No se pudo enviar la solicitud.');
+    showToast(error.message || 'No se pudo enviar la actualización.');
   } finally {
     button.disabled = false; button.textContent = 'Enviar actualización a Directiva →';
   }
