@@ -62,13 +62,13 @@ Si el correo ya tenía una cuenta de Auth, usa **Vincular cuenta existente**. La
 
 El rol se asigna conforme al tipo de registro: `Afiliado` → `afiliado`; `Colaborador` → `colaborador`; `Directiva` → `directiva`. Asigna el tipo Directiva únicamente cuando la persona deba tener permisos administrativos.
 
-## 5. Pruebas obligatorias antes de usar datos reales
+## 5. Verificación operativa antes de habilitar nuevas cuentas
 
 - [ ] La cuenta actual de Directiva sigue entrando al panel administrativo.
-- [ ] Crear un miembro de prueba, invitar un correo de prueba y completar la invitación.
-- [ ] La cuenta de prueba entra al portal de afiliado, no al panel de Directiva.
+- [ ] Crear un expediente de validación controlada, enviar una invitación institucional y completar la activación.
+- [ ] La cuenta de afiliado o colaborador accede únicamente a su portal individual.
 - [ ] El afiliado puede ver únicamente su expediente y su credencial.
-- [ ] La cuenta de prueba no puede leer expedientes de otros miembros por URL ni API.
+- [ ] La cuenta no puede consultar expedientes ajenos mediante navegación directa ni solicitudes API.
 - [ ] Enviar una solicitud de cambio de perfil y comprobar que queda pendiente.
 - [ ] Aprobarla desde Directiva y verificar que el expediente se actualiza.
 - [ ] Comprobar que la Directiva conserva el acceso a los tres folios históricos.

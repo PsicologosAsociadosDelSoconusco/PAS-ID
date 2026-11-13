@@ -19,7 +19,7 @@ Esta entrega utiliza las tablas `public.events` y `public.event_attendance` y la
 2. Sustituye los archivos del repositorio por los de esta versión, conservando `config.js` con la configuración pública actual de Supabase.
 3. Publica el contenido en la rama `main` de GitHub Pages.
 4. Inicia sesión como Directiva y abre **Eventos y asistencia**.
-5. Crea un evento de prueba sin datos sensibles y verifica el registro de asistencia con un miembro de prueba.
+5. Crea un evento institucional y verifica el registro de asistencia con una cuenta autorizada.
 
 ## Alcance y limitaciones
 

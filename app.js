@@ -1,12 +1,6 @@
 'use strict';
 
-const STORAGE_KEY = 'pas_id_prototype_members_v1';
-const foundingMembers = [
-  { id: '0000001', name: 'Manuel Alejandro Perdomo López', type: 'Miembro fundador', issued: '04/11/2026', expires: '04/11/2027', status: 'Activo', historical: true },
-  { id: '0000002', name: 'Josefina Sánchez Félix', type: 'Miembro fundador', issued: '04/11/2026', expires: '04/11/2027', status: 'Activo', historical: true },
-  { id: '0000003', name: 'Verónica Meza Santizo', type: 'Miembro fundador', issued: '04/11/2026', expires: '04/11/2027', status: 'Activo', historical: true }
-];
-let members = loadMembers();
+let members = [];
 const pasBackend = window.PASIDBackend;
 const connectedMode = Boolean(pasBackend && pasBackend.isConfigured());
 const backendConfigured = Boolean(pasBackend && pasBackend.hasConfiguration());
@@ -74,8 +68,7 @@ async function renderPasQr(canvas, value, size) {
 }
 
 
-// Ajusta las etiquetas que en el HTML base describen el modo de demostración.
-// En modo conectado, los formularios de altas y cambios utilizan las funciones RPC de Supabase.
+// La interfaz administrativa utiliza exclusivamente datos institucionales de Supabase.
 if (connectedMode) {
   const memberSubmit = document.querySelector('#memberForm button[type="submit"]');
   const memberHelp = document.querySelector('#memberModal .field-help');
@@ -91,12 +84,12 @@ if (connectedMode) {
   if (memberHelp) memberHelp.textContent = 'El registro se guardará en la base institucional y recibirá un identificador aleatorio generado por el servidor.';
   if (memberNote) memberNote.textContent = 'Los folios históricos de los fundadores se conservan. Las nuevas altas se registran en la base institucional con identificadores aleatorios revocables.';
   if (verifyNote) verifyNote.textContent = 'La consulta se realiza en línea desde la base de datos institucional de PAS ID y muestra únicamente información autorizada para verificación pública.';
-  if (footerStatus) footerStatus.innerHTML = '<i></i> PAS ID · Entorno conectado · Fase de pruebas';
-  if (dashboardNote) dashboardNote.innerHTML = '<strong>Base institucional conectada.</strong> Los registros, estados y verificaciones se consultan en Supabase. La plataforma continúa en fase de pruebas; valida los procedimientos antes de su operación institucional definitiva.';
-  if (dashboardTag) dashboardTag.textContent = 'PRUEBAS';
+  if (footerStatus) footerStatus.innerHTML = '<i></i> PAS ID · Plataforma institucional';
+  if (dashboardNote) dashboardNote.innerHTML = '<strong>Base institucional conectada.</strong> Los registros, estados y verificaciones se consultan desde la base de datos central de PAS ID.';
+  if (dashboardTag) dashboardTag.textContent = 'INSTITUCIONAL';
   if (activeStatNote) activeStatNote.innerHTML = '<span class="stat-positive">Estado vigente</span> en la base institucional';
   if (verificationHeading) verificationHeading.textContent = 'Comprueba en línea el estado vigente de una credencial PAS.';
-  if (settingsNotice) settingsNotice.innerHTML = '<strong>Entorno conectado en fase de pruebas.</strong> La autenticación, el directorio y la verificación pública ya consultan Supabase. Antes de operar oficialmente, completa las pruebas de permisos, respaldos, privacidad y emisión de credenciales.';
+  if (settingsNotice) settingsNotice.innerHTML = '<strong>Servicios institucionales conectados.</strong> La autenticación, el directorio y la verificación pública consultan Supabase. El acceso se rige por los permisos asignados a cada cuenta.';
   const integrationHeading = document.querySelector('#view-settings .settings-card:nth-child(2) h3');
   const integrationEyebrow = document.querySelector('#view-settings .settings-card:nth-child(2) .eyebrow');
   const integrationStatuses = document.querySelectorAll('#view-settings .integration-list li em');
@@ -107,18 +100,8 @@ if (connectedMode) {
   });
 }
 
-function loadMembers() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : structuredClone(foundingMembers);
-  } catch (error) {
-    console.warn('No se pudieron leer los datos locales de demostración.', error);
-    return structuredClone(foundingMembers);
-  }
-}
 function saveMembers() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(members)); }
-  catch (error) { showToast('No fue posible guardar el cambio en este navegador.'); }
+  // Los datos institucionales se persisten exclusivamente en Supabase.
 }
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -192,7 +175,7 @@ function renderMembers() {
     return found && (filter === 'all' || effectiveStatus(member) === filter);
   });
   document.getElementById('membersTable').innerHTML = filtered.map(member => `
-    <tr><td><div class="table-member"><div class="member-avatar">${escapeHtml(initials(member.name))}</div><div><b>${escapeHtml(member.name)}</b><small>${member.historical ? 'Registro histórico fundador' : (connectedMode ? 'Registro institucional' : 'Registro de demostración')}</small></div></div></td>
+    <tr><td><div class="table-member"><div class="member-avatar">${escapeHtml(initials(member.name))}</div><div><b>${escapeHtml(member.name)}</b><small>${member.historical ? 'Registro histórico fundador' : 'Registro institucional'}</small></div></div></td>
     <td><span class="folio">${escapeHtml(member.id)}</span></td><td><span class="type-label">${escapeHtml(member.type)}</span></td><td>${escapeHtml(formatDate(member.expires))}</td><td>${statusBadge(effectiveStatus(member))}</td><td><span class="account-status ${member.authUserId ? 'linked' : 'unlinked'}">${member.authUserId ? 'Vinculada' : 'Sin cuenta'}</span></td><td><button class="action-button" data-manage="${escapeHtml(member.id)}" aria-label="Gestionar ${escapeHtml(member.name)}" title="Gestionar miembro">⋯</button></td></tr>`).join('');
   document.getElementById('emptyMembers').classList.toggle('hidden', filtered.length > 0);
 }
@@ -666,12 +649,12 @@ document.getElementById('passwordSetupForm').addEventListener('submit', async ev
   submit.innerHTML = 'Guardar contraseña <span>→</span>';
 });
 
-document.getElementById('enterDemo').addEventListener('click', async () => {
+document.getElementById('loginSubmit').addEventListener('click', async () => {
   if (backendUnavailable) { showToast('La configuración está presente, pero no se pudo cargar la biblioteca de conexión.'); return; }
   if (!connectedMode) { showApp(); return; }
-  const button = document.getElementById('enterDemo');
-  const email = document.getElementById('demoEmail').value.trim();
-  const password = document.getElementById('demoPassword').value;
+  const button = document.getElementById('loginSubmit');
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
   button.disabled = true;
   button.innerHTML = 'Validando acceso…';
   try {
@@ -683,11 +666,11 @@ document.getElementById('enterDemo').addEventListener('click', async () => {
     showToast(error.message || 'No se pudo iniciar sesión.');
   } finally {
     button.disabled = false;
-    button.innerHTML = connectedMode ? 'Iniciar sesión <span>→</span>' : 'Explorar demostración <span>→</span>';
+    button.innerHTML = 'Iniciar sesión <span>→</span>';
   }
 });
 document.getElementById('togglePassword').addEventListener('click', () => {
-  const input = document.getElementById('demoPassword');
+  const input = document.getElementById('loginPassword');
   input.type = input.type === 'password' ? 'text' : 'password';
 });
 document.getElementById('publicAccess').addEventListener('click', openPublicScreen);
@@ -751,7 +734,7 @@ document.getElementById('memberSignOutButton').addEventListener('click', async (
   signedInRole = ''; signedInEmail = ''; currentMemberProfile = null;
   document.getElementById('memberPortalScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
-  document.getElementById('demoPassword').value = '';
+  document.getElementById('loginPassword').value = '';
   showToast('Sesión cerrada.');
 });
 document.getElementById('copyMemberCredential').addEventListener('click', async () => {
@@ -834,7 +817,7 @@ document.getElementById('memberForm').addEventListener('submit', async event => 
   document.getElementById('memberSearch').value = '';
   document.getElementById('statusFilter').value = 'all';
   showView('members');
-  showToast(`Miembro agregado a la demostración: ${newMember.id}`);
+  showToast(`Miembro registrado: ${newMember.id}`);
 });
 document.getElementById('detailContent').addEventListener('click', async event => {
   if (event.target.id === 'saveAdminMemberProfile') {
@@ -919,7 +902,7 @@ document.getElementById('detailContent').addEventListener('click', async event =
   }
   member.status = nextStatus;
   saveMembers(); renderAll(); closeModal('detailModal');
-  showToast(`Estado actualizado en esta demostración: ${nextStatus}`);
+  showToast(`Estado actualizado: ${nextStatus}`);
 });
 document.getElementById('profileRequestsList').addEventListener('click', async event => {
   const button = event.target.closest('[data-review-request]');
@@ -956,24 +939,25 @@ document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.addEve
 
 document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('es-MX', {weekday:'short', day:'numeric', month:'short', year:'numeric'});
 
-const demoRibbon = document.querySelector('.demo-ribbon');
+const institutionRibbon = document.querySelector('.institution-ribbon');
 const loginHint = document.querySelector('.login-hint');
-const loginButton = document.getElementById('enterDemo');
+const loginButton = document.getElementById('loginSubmit');
 if (backendUnavailable) {
-  demoRibbon.textContent = 'CONFIGURACIÓN DETECTADA · CONECTOR NO DISPONIBLE';
+  institutionRibbon.textContent = 'CONFIGURACIÓN DETECTADA · CONECTOR NO DISPONIBLE';
   loginButton.disabled = true;
   loginHint.innerHTML = '<span class="info-dot">!</span> Se detectaron datos de conexión, pero no cargó el SDK de Supabase. Verifica la conexión a internet y vuelve a cargar.';
 } else if (connectedMode) {
-  demoRibbon.textContent = 'CONEXIÓN SUPABASE CONFIGURADA · PAS ID';
+  institutionRibbon.textContent = 'CONEXIÓN SUPABASE CONFIGURADA · PAS ID';
   const publicIntro = document.querySelector('.verify-main > .muted');
   if (publicIntro) publicIntro.textContent = 'Introduce el folio histórico o el identificador aleatorio para consultar el estado vigente en la base de datos institucional.';
   const internalIntro = document.querySelector('#view-verification .page-heading p');
   if (internalIntro) internalIntro.textContent = 'Comprueba en línea el estado vigente de una credencial PAS.';
-  demoRibbon.classList.add('connected-ribbon');
+  institutionRibbon.classList.add('connected-ribbon');
   loginButton.innerHTML = 'Iniciar sesión <span>→</span>';
   loginHint.innerHTML = '<span class="info-dot">i</span> Acceso protegido. Directiva y afiliados ingresan con sus cuentas personales autorizadas.';
 } else {
-  renderAll();
+  loginButton.disabled = true;
+  loginHint.innerHTML = '<span class="info-dot">!</span> El servicio de acceso no está disponible. Intenta nuevamente más tarde.';
 }
 
 document.querySelectorAll('[data-close-issued]').forEach(button => button.addEventListener('click', () => closeModal('issuedModal')));
@@ -999,12 +983,12 @@ document.getElementById('copyIssuedUrl').addEventListener('click', async () => {
 document.getElementById('signOutButton').addEventListener('click', async () => {
   try { if (connectedMode) await pasBackend.signOut(); }
   catch (error) { console.warn('No se pudo cerrar la sesión de Supabase.', error); }
-  members = loadMembers();
+  members = [];
   signedInRole = ''; signedInEmail = ''; currentMemberProfile = null;
   document.getElementById('appShell').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('signOutButton').classList.add('hidden');
-  document.getElementById('demoPassword').value = '';
+  document.getElementById('loginPassword').value = '';
   showToast('Sesión cerrada.');
 });
 

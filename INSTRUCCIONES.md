@@ -1,17 +1,20 @@
-# PAS ID · Etapa 2
+# Administración de PAS ID
 
-Esta versión añade las cuentas individuales de afiliados/colaboradores y su expediente digital privado.
+## Acceso
 
-## Orden de instalación
+La Directiva administra las cuentas desde el panel institucional. Afiliados y colaboradores acceden a su portal individual con la cuenta que les haya sido autorizada.
 
-1. Realiza un respaldo de Supabase.
-2. Ejecuta una sola vez `supabase/002_member_portal.sql` en Supabase SQL Editor. No vuelvas a ejecutar el esquema `001`.
-3. Despliega la función `supabase/functions/manage-member-access` y configura su secreto `PAS_ID_SITE_URL` siguiendo `docs/ETAPA-2-INSTALACION.md`.
-4. Sube el contenido del ZIP a la raíz de tu repositorio PAS-ID, conservando `config.js` y `assets/pas-logo.png`.
-5. Inicia sesión como Directiva, registra un miembro de prueba e invítalo desde la ficha de gestión.
+## Alta y vinculación de cuentas
 
-## Seguridad
+1. Registra el expediente desde el directorio institucional.
+2. Abre la ficha del miembro y utiliza la opción de invitación.
+3. La persona recibe el enlace de activación y define su contraseña.
+4. Comprueba que el rol asignado corresponda a su función institucional.
 
-No añadas nunca la clave `service_role` a `config.js`, HTML, JavaScript del navegador o GitHub. Esa clave se guarda únicamente en Secrets de Supabase.
+## Solicitudes institucionales
 
-La cuenta de prueba debe tener rol `afiliado` o `colaborador`, y su perfil debe abrir en el portal individual. La Directiva mantiene el panel administrativo.
+Todos los roles autenticados pueden presentar solicitudes desde su portal. La Directiva puede revisar, responder, aprobar, rechazar o solicitar información adicional. El historial queda asociado a la cuenta remitente.
+
+## Protección de credenciales
+
+No compartas contraseñas ni claves administrativas. La clave `service_role` permanece exclusivamente en los secretos de Supabase. Los folios históricos de fundadores no deben modificarse ni reutilizarse.

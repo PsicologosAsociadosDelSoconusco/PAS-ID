@@ -20,11 +20,11 @@
 3. No requiere migración SQL adicional.
 4. Espera a que GitHub Pages publique los cambios y recarga con Ctrl+F5.
 
-## Prueba sugerida
+## Verificación operativa
 1. Inicia sesión como Directiva y abre Eventos y asistencia.
 2. Selecciona el evento que recibirá la asistencia.
 3. Pulsa «Escanear credencial QR» y concede permiso de cámara.
-4. Escanea el QR de una credencial vigente de prueba.
+4. Escanea el QR de una credencial vigente autorizada para la verificación.
 5. Confirma que aparece en la lista de asistentes y que el afiliado ve su asistencia en «Mi historial».
 6. Escanea el mismo QR otra vez: debe informar que ya existe una asistencia para ese evento.
 

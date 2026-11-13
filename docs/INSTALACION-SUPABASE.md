@@ -56,19 +56,19 @@ La clave publicable está diseñada para estar en el cliente y **no sustituye a 
 
 El sitio institucional actual no necesita modificarse en este paso. Después se agregará un enlace hacia PAS ID.
 
-## 5. Pruebas obligatorias antes de uso real
+## 5. Verificaciones de seguridad y operación
 
-Realizar estas pruebas con registros de prueba, no con una credencial real en uso:
+Realiza las verificaciones con cuentas y registros controlados, sin alterar credenciales institucionales activas:
 
 1. Sin iniciar sesión, intentar consultar tablas directamente: debe denegarse el acceso.
 2. Sin iniciar sesión, consultar `0000001` con la interfaz pública: debe devolver únicamente nombre, tipo, folio, fechas y estado.
 3. Iniciar sesión con el usuario autorizado de Directiva: debe abrirse el panel.
 4. Iniciar sesión con un usuario autenticado sin rol `directiva`: no debe abrirse el panel administrativo.
-5. Registrar un miembro de prueba: el servidor debe generar el identificador aleatorio y este debe aparecer una sola vez en el cuadro de emisión.
+5. Registrar un expediente controlado: el servidor debe generar el identificador aleatorio y este debe aparecer una sola vez en el cuadro de emisión.
 6. Consultar el identificador desde una ventana privada: debe mostrar el estado vigente.
-7. Revocar la credencial de prueba: la consulta pública debe reflejar inmediatamente `Revocado`.
-8. Suspender la membresía de prueba: la consulta debe reflejar `Suspendido`.
-9. Emitir una credencial renovada de prueba: el identificador anterior debe quedar como `Sustituido` y el nuevo debe consultar como `Activo`.
+7. Revocar la credencial controlada: la consulta pública debe reflejar inmediatamente `Revocado`.
+8. Suspender la membresía controlada: la consulta debe reflejar `Suspendido`.
+9. Emitir una credencial renovada controlada: el identificador anterior debe quedar como `Sustituido` y el nuevo debe consultar como `Activo`.
 10. Confirmar que correo, teléfono y notas internas no se muestran en la consulta pública ni en el directorio.
 11. Confirmar en `audit_logs` que las acciones administrativas relevantes generen historial.
 
