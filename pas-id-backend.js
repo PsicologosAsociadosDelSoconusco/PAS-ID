@@ -236,6 +236,12 @@
       );
       return Array.isArray(data) ? data[0] : data;
     }
+
+    async verifyCertificate(certificateNumber) {
+      if (!configured) throw new Error('Servicio de verificación no disponible.');
+      const data = await unwrap(client.rpc('verify_pas_certificate', { p_certificate_number: String(certificateNumber || '').trim() }), 'verificación de constancia');
+      return Array.isArray(data) ? data[0] : data;
+    }
   };
 
   function isoToSpanish(value) {
