@@ -19,6 +19,51 @@ let selectedCredentialMemberId = null;
 let pendingRandomId = null;
 let toastTimer;
 
+let qrFallbackPromise = null;
+async function ensureQrLibrary() {
+  if (window.QRCode) return window.QRCode;
+  if (!qrFallbackPromise) {
+    qrFallbackPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+      script.onload = () => window.QRCode ? resolve(window.QRCode) : reject(new Error('La biblioteca QR no quedó disponible.'));
+      script.onerror = () => reject(new Error('No se pudo cargar la biblioteca para generar códigos QR.'));
+      document.head.appendChild(script);
+    });
+  }
+  return qrFallbackPromise;
+}
+async function drawVerificationQr(canvas, value, size) {
+  const ctx = canvas?.getContext?.('2d');
+  if (!ctx || !value) return false;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  try {
+    const library = await ensureQrLibrary();
+    if (typeof library.toCanvas === 'function') {
+      await library.toCanvas(canvas, value, { width: size, margin: 1, color: { dark: '#173655', light: '#ffffff' } });
+      return true;
+    }
+    // Compatibilidad con QRCode.js cuando la biblioteca principal no carga.
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;overflow:hidden';
+    document.body.appendChild(host);
+    try {
+      new library(host, { text: value, width: size, height: size, colorDark: '#173655', colorLight: '#ffffff', correctLevel: library.CorrectLevel?.M || 0 });
+      const generated = host.querySelector('canvas');
+      if (!generated) throw new Error('La biblioteca QR no generó una imagen.');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(generated, 0, 0, canvas.width, canvas.height);
+      return true;
+    } finally { host.remove(); }
+  } catch (error) {
+    console.warn('No se pudo generar el QR de verificación.', error);
+    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('QR no disponible', canvas.width / 2, canvas.height / 2);
+    return false;
+  }
+}
+
 // Ajusta las etiquetas que en el HTML base describen el modo de demostración.
 // En modo conectado, los formularios de altas y cambios utilizan las funciones RPC de Supabase.
 if (connectedMode) {
@@ -179,14 +224,7 @@ function renderCredentials() {
   qrHeading.textContent = `QR · ${preview.name}`;
   qrHelp.textContent = 'El mismo enlace puede grabarse en una etiqueta NFC compatible.';
   copyButton.disabled = false; copyButton.dataset.url = verifyUrl;
-  const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
-  if (window.QRCode?.toCanvas) {
-    window.QRCode.toCanvas(canvas, verifyUrl, {width:112, margin:1, color:{dark:'#173655',light:'#ffffff'}})
-      .catch(error => { console.warn('No se pudo generar el QR de la credencial.', error); });
-  } else {
-    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('QR no disponible',canvas.width/2,canvas.height/2);
-  }
+  drawVerificationQr(canvas, verifyUrl, 112);
 }
 function renderAll() {
   updateStats(); renderRecent(); renderMembers(); renderCredentials();
@@ -431,16 +469,7 @@ function showMemberPortal(profile) {
   link.href = verifyUrl || '#';
   link.classList.toggle('disabled-link', !verifyUrl);
   const canvas = document.getElementById('memberPortalQrCanvas');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (verifyUrl && window.QRCode?.toCanvas) {
-    window.QRCode.toCanvas(canvas, verifyUrl, {width:168, margin:1, color:{dark:'#173655',light:'#ffffff'}})
-      .catch(error => { console.warn('No se pudo generar el QR.', error); });
-  } else {
-    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#52677e'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('QR no disponible', canvas.width/2, canvas.height/2);
-  }
+  drawVerificationQr(canvas, verifyUrl, 168);
   const fields = {
     profileEmail: detail.contact_email || signedInEmail || '',
     profilePhone: detail.phone || '',
