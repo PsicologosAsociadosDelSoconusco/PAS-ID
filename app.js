@@ -196,6 +196,36 @@ function renderMembers() {
     <td><span class="folio">${escapeHtml(member.id)}</span></td><td><span class="type-label">${escapeHtml(member.type)}</span></td><td>${escapeHtml(formatDate(member.expires))}</td><td>${statusBadge(effectiveStatus(member))}</td><td><span class="account-status ${member.authUserId ? 'linked' : 'unlinked'}">${member.authUserId ? 'Vinculada' : 'Sin cuenta'}</span></td><td><button class="action-button" data-manage="${escapeHtml(member.id)}" aria-label="Gestionar ${escapeHtml(member.name)}" title="Gestionar miembro">⋯</button></td></tr>`).join('');
   document.getElementById('emptyMembers').classList.toggle('hidden', filtered.length > 0);
 }
+function drawQrFallback(canvas, value, size) {
+  if (!canvas || !value) return;
+  const ctx = canvas.getContext('2d');
+  const dimension = size || canvas.width || 112;
+  const paintPlaceholder = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('QR no disponible', canvas.width / 2, canvas.height / 2);
+  };
+  const encoded = encodeURIComponent(value);
+  const sources = [
+    `https://api.qrserver.com/v1/create-qr-code/?size=${dimension}x${dimension}&margin=1&color=173655&bgcolor=ffffff&data=${encoded}`,
+    `https://quickchart.io/qr?size=${dimension}&margin=1&dark=173655&light=ffffff&text=${encoded}`
+  ];
+  let attempt = 0;
+  const loadNext = () => {
+    if (attempt >= sources.length) { paintPlaceholder(); return; }
+    const image = new Image();
+    image.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    };
+    image.onerror = () => { attempt += 1; loadNext(); };
+    image.src = sources[attempt];
+  };
+  loadNext();
+}
+
 function renderCredentials() {
   const list = document.getElementById('credentialList');
   list.innerHTML = members.map(member => `
@@ -237,10 +267,9 @@ function renderCredentials() {
   const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
   if (window.QRCode?.toCanvas) {
     window.QRCode.toCanvas(canvas, verifyUrl, {width:112, margin:1, color:{dark:'#173655',light:'#ffffff'}})
-      .catch(error => { console.warn('No se pudo generar el QR de la credencial.', error); });
+      .catch(error => { console.warn('SDK QR no disponible; usando generador alternativo.', error); drawQrFallback(canvas, verifyUrl, 112); });
   } else {
-    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('QR no disponible',canvas.width/2,canvas.height/2);
+    drawQrFallback(canvas, verifyUrl, 112);
   }
 }
 function renderAll() {
@@ -491,7 +520,9 @@ function showMemberPortal(profile) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (verifyUrl && window.QRCode?.toCanvas) {
     window.QRCode.toCanvas(canvas, verifyUrl, {width:168, margin:1, color:{dark:'#173655',light:'#ffffff'}})
-      .catch(error => { console.warn('No se pudo generar el QR.', error); });
+      .catch(error => { console.warn('SDK QR no disponible; usando generador alternativo.', error); drawQrFallback(canvas, verifyUrl, 168); });
+  } else if (verifyUrl) {
+    drawQrFallback(canvas, verifyUrl, 168);
   } else {
     ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#52677e'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
