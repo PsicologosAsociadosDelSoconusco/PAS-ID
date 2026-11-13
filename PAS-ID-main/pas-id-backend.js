@@ -83,6 +83,26 @@
       return unwrap(client.rpc('submit_my_pas_profile_change_request', { p_changes: changes }), 'solicitud de actualización');
     },
 
+    async createInstitutionalRequest(payload) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('submit_pas_request', { p_request: payload }), 'envío de solicitud');
+    },
+
+    async listMyInstitutionalRequests() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('institutional_requests').select('id,request_number,category,subject,description,related_place,proposed_date,request_status,submitted_at,admin_response').order('submitted_at', { ascending: false }), 'mis solicitudes');
+    },
+
+    async listInstitutionalRequests() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('institutional_requests').select('id,request_number,requester_email,requester_name,requester_role,category,subject,description,related_place,proposed_date,request_status,submitted_at,admin_response').order('submitted_at', { ascending: false }), 'solicitudes institucionales');
+    },
+
+    async reviewInstitutionalRequest(requestId, status, response = '') {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('review_pas_request', { p_request_id: requestId, p_status: status, p_response: response || null }), 'respuesta de solicitud');
+    },
+
     async listProfileChangeRequests() {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.from('member_profile_change_requests')
@@ -107,10 +127,10 @@
       }), 'resolución de solicitud');
     },
 
-    async manageMemberAccess(action, memberId, email) {
+    async manageMemberAccess(action, memberId, email = '') {
       if (!configured) throw new Error('Supabase no está configurado.');
       const result = await client.functions.invoke('manage-member-access', {
-        body: { action, member_id: memberId, email }
+        body: { action, member_id: memberId, ...(email ? { email } : {}) }
       });
       if (result.error) {
         let message = result.error.message || 'No se pudo administrar el acceso.';
@@ -207,12 +227,45 @@
       await unwrap(client.from('event_attendance').delete().eq('id', attendanceId), 'eliminación de asistencia');
     },
 
+    async listCertificates() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('certificates').select('id,member_id,event_id,certificate_number,title,issued_at,revoked_at,members(id,full_name,legacy_folio,member_type),events(id,title,starts_at)').order('issued_at', { ascending: false }), 'constancias');
+    },
+
+    async listMyCertificates() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('certificates').select('id,certificate_number,title,issued_at,revoked_at,events(title,starts_at)').order('issued_at', { ascending: false }), 'mis constancias');
+    },
+
+    async issueCertificate({ memberId, eventId, title, certificateNumber }) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const { data: userData } = await client.auth.getUser();
+      return unwrap(client.from('certificates').insert({ member_id: memberId, event_id: eventId || null, title, certificate_number: certificateNumber, created_by: userData.user?.id || null }).select('id,member_id,event_id,certificate_number,title,issued_at,revoked_at').single(), 'emisión de constancia');
+    },
+
+    async revokeCertificate(certificateId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const { data: userData } = await client.auth.getUser();
+      return unwrap(client.from('certificates').update({ revoked_at: new Date().toISOString(), revoked_by: userData.user?.id || null }).eq('id', certificateId).is('revoked_at', null).select('id').single(), 'revocación de constancia');
+    },
+
     async verify(identifier) {
       const data = await unwrap(
         client.rpc('verify_pas_credential', { p_identifier: String(identifier || '').trim() }),
         'verificación pública'
       );
       return Array.isArray(data) ? data[0] : data;
+    },
+
+    async verifyCertificate(certificateNumber) {
+      if (!configured) throw new Error('El servicio de verificación no está disponible.');
+      const data = await unwrap(
+        client.rpc('verify_pas_certificate', {
+          p_certificate_number: String(certificateNumber || '').trim()
+        }),
+        'verificación pública de constancia'
+      );
+      return Array.isArray(data) ? data[0] || null : data || null;
     }
   };
 

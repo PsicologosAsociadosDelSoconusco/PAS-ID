@@ -127,10 +127,10 @@
       }), 'resolución de solicitud');
     },
 
-    async manageMemberAccess(action, memberId, email) {
+    async manageMemberAccess(action, memberId, email = '') {
       if (!configured) throw new Error('Supabase no está configurado.');
       const result = await client.functions.invoke('manage-member-access', {
-        body: { action, member_id: memberId, email }
+        body: { action, member_id: memberId, ...(email ? { email } : {}) }
       });
       if (result.error) {
         let message = result.error.message || 'No se pudo administrar el acceso.';

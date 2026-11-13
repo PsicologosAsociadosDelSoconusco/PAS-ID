@@ -53,8 +53,8 @@ Deno.serve(async (req: Request) => {
     const memberId = String(body.member_id || '');
     const email = String(body.email || '').trim().toLowerCase();
     if (!memberId || !/^[0-9a-f-]{36}$/i.test(memberId)) return json(400, { error: 'Identificador de miembro no válido.' });
-    if (!['invite', 'link_existing'].includes(action)) return json(400, { error: 'Acción no válida.' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { error: 'Escribe un correo electrónico válido.' });
+    if (!['invite', 'link_existing', 'delete_account'].includes(action)) return json(400, { error: 'Acción no válida.' });
+    if (action !== 'delete_account' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { error: 'Escribe un correo electrónico válido.' });
 
     const { data: member, error: memberError } = await adminClient
       .from('members')
@@ -62,6 +62,41 @@ Deno.serve(async (req: Request) => {
       .eq('id', memberId)
       .single();
     if (memberError || !member) return json(404, { error: 'No se encontró el expediente.' });
+
+    if (action === 'delete_account') {
+      if (member.member_type === 'Miembro fundador' || member.member_type === 'Directiva') {
+        return json(403, { error: 'Por protección institucional, no se pueden eliminar cuentas de fundadores ni de Directiva desde el directorio.' });
+      }
+      if (!member.auth_user_id) return json(409, { error: 'Este expediente no tiene una cuenta vinculada.' });
+      if (member.auth_user_id === userData.user.id) {
+        return json(403, { error: 'No puedes eliminar desde aquí tu propia cuenta de Directiva.' });
+      }
+
+      const { data: targetRoles, error: targetRoleError } = await adminClient
+        .from('user_roles').select('role').eq('user_id', member.auth_user_id);
+      if (targetRoleError) return json(500, { error: `No se pudo validar el rol de la cuenta: ${targetRoleError.message}` });
+      if ((targetRoles || []).some((item) => item.role === 'directiva')) {
+        return json(403, { error: 'Esta cuenta tiene permisos de Directiva y no puede eliminarse desde el directorio.' });
+      }
+
+      const targetUserId = member.auth_user_id;
+      const { error: unlinkError } = await adminClient
+        .from('members').update({ auth_user_id: null }).eq('id', memberId).eq('auth_user_id', targetUserId);
+      if (unlinkError) return json(500, { error: `No se pudo desvincular el expediente: ${unlinkError.message}` });
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
+      if (deleteError) {
+        await adminClient.from('members').update({ auth_user_id: targetUserId }).eq('id', memberId).is('auth_user_id', null);
+        return json(500, { error: `No se pudo eliminar la cuenta de acceso. Se intentó restaurar la vinculación: ${deleteError.message}` });
+      }
+
+      return json(200, {
+        ok: true,
+        action: 'delete_account',
+        message: 'Cuenta de acceso eliminada. El expediente, la credencial y el historial institucional se conservaron.'
+      });
+    }
+
     if (member.auth_user_id) return json(409, { error: 'Este expediente ya tiene una cuenta vinculada.' });
 
     let invitedUserId: string | null = null;
