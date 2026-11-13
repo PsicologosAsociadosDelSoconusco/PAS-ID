@@ -12,7 +12,10 @@ const connectedMode = Boolean(pasBackend && pasBackend.isConfigured());
 const backendConfigured = Boolean(pasBackend && pasBackend.hasConfiguration());
 const backendUnavailable = backendConfigured && !connectedMode;
 let signedInEmail = '';
+let signedInRole = '';
+let currentMemberProfile = null;
 let selectedMemberId = null;
+let selectedCredentialMemberId = null;
 let pendingRandomId = null;
 let toastTimer;
 
@@ -135,15 +138,85 @@ function renderMembers() {
   });
   document.getElementById('membersTable').innerHTML = filtered.map(member => `
     <tr><td><div class="table-member"><div class="member-avatar">${escapeHtml(initials(member.name))}</div><div><b>${escapeHtml(member.name)}</b><small>${member.historical ? 'Registro histórico fundador' : (connectedMode ? 'Registro institucional' : 'Registro de demostración')}</small></div></div></td>
-    <td><span class="folio">${escapeHtml(member.id)}</span></td><td><span class="type-label">${escapeHtml(member.type)}</span></td><td>${escapeHtml(formatDate(member.expires))}</td><td>${statusBadge(effectiveStatus(member))}</td><td><button class="action-button" data-manage="${escapeHtml(member.id)}" aria-label="Gestionar ${escapeHtml(member.name)}" title="Gestionar miembro">⋯</button></td></tr>`).join('');
+    <td><span class="folio">${escapeHtml(member.id)}</span></td><td><span class="type-label">${escapeHtml(member.type)}</span></td><td>${escapeHtml(formatDate(member.expires))}</td><td>${statusBadge(effectiveStatus(member))}</td><td><span class="account-status ${member.authUserId ? 'linked' : 'unlinked'}">${member.authUserId ? 'Vinculada' : 'Sin cuenta'}</span></td><td><button class="action-button" data-manage="${escapeHtml(member.id)}" aria-label="Gestionar ${escapeHtml(member.name)}" title="Gestionar miembro">⋯</button></td></tr>`).join('');
   document.getElementById('emptyMembers').classList.toggle('hidden', filtered.length > 0);
 }
 function renderCredentials() {
-  document.getElementById('credentialList').innerHTML = members.map(member => `
-    <div class="credential-row"><div class="member-avatar">${escapeHtml(initials(member.name))}</div><div><b>${escapeHtml(member.name)}</b><small>${escapeHtml(member.id)} · ${escapeHtml(effectiveStatus(member))}</small></div></div>`).join('');
+  const list = document.getElementById('credentialList');
+  list.innerHTML = members.map(member => `
+    <div class="credential-row"><div class="member-avatar">${escapeHtml(initials(member.name))}</div><div><b>${escapeHtml(member.name)}</b><small>${escapeHtml(member.id)} · ${escapeHtml(effectiveStatus(member))}</small></div><button type="button" class="text-button" data-preview-credential="${escapeHtml(member.id)}">Ver tarjeta</button></div>`).join('');
+  const preview = members.find(member => member.id === selectedCredentialMemberId)
+    || members.find(member => effectiveStatus(member) === 'Activo') || members[0];
+  const badge = document.getElementById('credentialPreviewBadge');
+  const name = document.getElementById('credentialPreviewName');
+  const type = document.getElementById('credentialPreviewType');
+  const identifier = document.getElementById('credentialPreviewId');
+  const monogram = document.getElementById('credentialPreviewMonogram');
+  const issued = document.getElementById('credentialPreviewIssued');
+  const expires = document.getElementById('credentialPreviewExpires');
+  const status = document.getElementById('credentialPreviewStatus');
+  const canvas = document.getElementById('credentialPreviewQr');
+  const qrHeading = document.getElementById('credentialQrHeading');
+  const qrHelp = document.getElementById('credentialQrHelp');
+  const copyButton = document.getElementById('copyCredentialPreviewUrl');
+  if (!preview) {
+    name.textContent = 'Sin miembros registrados'; type.textContent = 'PAS ID'; identifier.textContent = '—'; monogram.textContent = 'PAS';
+    issued.textContent = '—'; expires.textContent = '—'; status.innerHTML = '<i></i> SIN REGISTROS';
+    qrHeading.textContent = 'Sin credencial'; qrHelp.textContent = 'Registra un miembro para generar el enlace de verificación.';
+    copyButton.disabled = true; copyButton.dataset.url = '';
+    const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+  const publicId = preview.publicIdentifier || preview.id;
+  const verifyUrl = buildVerificationUrl(publicId);
+  badge.textContent = connectedMode ? 'CREDENCIAL REAL' : 'VISTA LOCAL';
+  name.textContent = preview.name;
+  type.textContent = String(preview.type || 'MIEMBRO PAS').toUpperCase();
+  identifier.textContent = publicId;
+  monogram.textContent = initials(preview.name);
+  issued.textContent = formatDate(preview.issued).toUpperCase();
+  expires.textContent = formatDate(preview.expires).toUpperCase();
+  status.innerHTML = `<i></i> ${escapeHtml(effectiveStatus(preview).toUpperCase())}`;
+  qrHeading.textContent = `QR · ${preview.name}`;
+  qrHelp.textContent = 'El mismo enlace puede grabarse en una etiqueta NFC compatible.';
+  copyButton.disabled = false; copyButton.dataset.url = verifyUrl;
+  const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (window.QRCode?.toCanvas) {
+    window.QRCode.toCanvas(canvas, verifyUrl, {width:112, margin:1, color:{dark:'#173655',light:'#ffffff'}})
+      .catch(error => { console.warn('No se pudo generar el QR de la credencial.', error); });
+  } else {
+    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('QR no disponible',canvas.width/2,canvas.height/2);
+  }
 }
 function renderAll() {
   updateStats(); renderRecent(); renderMembers(); renderCredentials();
+}
+function profileChangeLabel(key) {
+  return ({contact_email:'Correo de contacto',phone:'Teléfono',professional_license:'Cédula profesional',specialty:'Área / especialidad',city:'Municipio',state:'Estado',about:'Presentación profesional'})[key] || key;
+}
+async function loadProfileRequests() {
+  const target = document.getElementById('profileRequestsList');
+  if (!target || !connectedMode || signedInRole !== 'directiva') return;
+  target.innerHTML = '<p class="muted">Consultando solicitudes…</p>';
+  try {
+    const requests = await pasBackend.listProfileChangeRequests();
+    const pending = requests.filter(item => item.request_status === 'pending').length;
+    document.getElementById('profileRequestCount').textContent = `${pending} pendientes`;
+    if (!requests.length) {
+      target.innerHTML = '<p class="muted">Todavía no hay solicitudes de actualización.</p>';
+      return;
+    }
+    target.innerHTML = requests.map(request => {
+      const member = Array.isArray(request.members) ? request.members[0] : request.members;
+      const changes = Object.entries(request.requested_changes || {}).map(([key,value]) => `<div class="request-change"><span>${escapeHtml(profileChangeLabel(key))}</span><b>${escapeHtml(value || '—')}</b></div>`).join('');
+      const status = request.request_status === 'approved' ? 'Aprobada' : request.request_status === 'rejected' ? 'Rechazada' : 'Pendiente';
+      return `<article class="profile-request-item"><div class="profile-request-head"><div><b>${escapeHtml(member?.full_name || 'Miembro PAS')}</b><small>${escapeHtml(member?.legacy_folio || member?.member_type || '')} · ${new Date(request.submitted_at).toLocaleDateString('es-MX')}</small></div><span class="request-status ${request.request_status}">${status}</span></div><div class="request-changes-grid">${changes}</div>${request.request_status === 'pending' ? `<div class="request-actions"><button type="button" class="btn btn-outline" data-review-request="${request.id}" data-decision="rejected">Rechazar</button><button type="button" class="btn btn-primary" data-review-request="${request.id}" data-decision="approved">Aprobar cambios</button></div>` : `<small class="request-response">${escapeHtml(request.admin_response || 'Solicitud atendida.')}</small>`}</article>`;
+    }).join('');
+  } catch (error) {
+    console.error(error);
+    target.innerHTML = `<p class="muted">No fue posible cargar las solicitudes: ${escapeHtml(error.message)}</p>`;
+  }
 }
 function showView(viewName) {
   const target = document.getElementById(`view-${viewName}`);
@@ -155,6 +228,7 @@ function showView(viewName) {
   document.getElementById('breadcrumbCurrent').textContent = labels[viewName] || 'Plataforma';
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarScrim').classList.remove('show');
+  if (viewName === 'members') loadProfileRequests();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 function openMemberModal() {
@@ -196,16 +270,21 @@ function openMemberDetail(id) {
   const member = members.find(item => item.id === id);
   if (!member) return;
   selectedMemberId = id;
+  const profile = member.profile || {};
   document.getElementById('detailModalTitle').textContent = 'Gestionar miembro';
   document.getElementById('detailContent').innerHTML = `
     <div class="detail-top"><div class="member-avatar">${escapeHtml(initials(member.name))}</div><div><b>${escapeHtml(member.name)}</b><small>${escapeHtml(member.id)} · ${escapeHtml(member.type)}</small></div></div>
-    <div class="detail-fields"><div class="detail-field"><span>FOLIO / IDENTIFICADOR</span><b>${escapeHtml(member.id)}</b></div><div class="detail-field"><span>TIPO DE REGISTRO</span><b>${escapeHtml(member.type)}</b></div><div class="detail-field"><span>EXPEDICIÓN</span><b>${escapeHtml(formatDate(member.issued))}</b></div><div class="detail-field"><span>VIGENCIA</span><b>${escapeHtml(formatDate(member.expires))}</b></div></div>
+    <div class="detail-fields"><div class="detail-field"><span>FOLIO / IDENTIFICADOR</span><b>${escapeHtml(member.id)}</b></div><div class="detail-field"><span>TIPO DE REGISTRO</span><b>${escapeHtml(member.type)}</b></div><div class="detail-field"><span>EXPEDICIÓN</span><b>${escapeHtml(formatDate(member.issued))}</b></div><div class="detail-field"><span>VIGENCIA</span><b>${escapeHtml(formatDate(member.expires))}</b></div><div class="detail-field"><span>ESPECIALIDAD</span><b>${escapeHtml(profile.specialty || 'Sin capturar')}</b></div><div class="detail-field"><span>CÉDULA PROFESIONAL</span><b>${escapeHtml(profile.professional_license || 'Sin capturar')}</b></div></div>
+    ${connectedMode ? `<div class="admin-profile-editor"><div><span class="eyebrow">EXPEDIENTE DIGITAL</span><b>Datos del miembro</b><small>Estos datos son privados y solo los consulta el afiliado y la Directiva.</small></div><div class="admin-profile-grid"><div><label for="adminProfileEmail">CORREO DE CONTACTO</label><input id="adminProfileEmail" type="email" maxlength="254" value="${escapeHtml(profile.contact_email || '')}"></div><div><label for="adminProfilePhone">TELÉFONO</label><input id="adminProfilePhone" maxlength="40" value="${escapeHtml(profile.phone || '')}"></div><div><label for="adminProfileLicense">CÉDULA PROFESIONAL</label><input id="adminProfileLicense" maxlength="80" value="${escapeHtml(profile.professional_license || '')}"></div><div><label for="adminProfileSpecialty">ÁREA / ESPECIALIDAD</label><input id="adminProfileSpecialty" maxlength="160" value="${escapeHtml(profile.specialty || '')}"></div><div><label for="adminProfileCity">MUNICIPIO</label><input id="adminProfileCity" maxlength="100" value="${escapeHtml(profile.city || '')}"></div><div><label for="adminProfileState">ESTADO</label><input id="adminProfileState" maxlength="100" value="${escapeHtml(profile.state || '')}"></div><div class="wide"><label for="adminProfileAbout">PRESENTACIÓN PROFESIONAL</label><textarea id="adminProfileAbout" rows="2" maxlength="300">${escapeHtml(profile.about || '')}</textarea></div></div><button type="button" class="btn btn-outline" id="saveAdminMemberProfile">Guardar datos del expediente</button><small class="field-help">El correo de contacto no cambia automáticamente el correo de inicio de sesión.</small></div>` : ''}
+    <div class="access-panel"><div class="access-panel-head"><div><span class="eyebrow">CUENTA PERSONAL PAS ID</span><b>${member.authUserId ? 'Cuenta vinculada' : 'Sin cuenta individual'}</b></div><span class="account-status ${member.authUserId ? 'linked' : 'unlinked'}">${member.authUserId ? 'Vinculada' : 'Pendiente'}</span></div>
+    ${member.authUserId ? `<p class="access-help">Este expediente ya está vinculado a una cuenta de acceso. El rol se determina según el tipo de miembro.</p>` : `<label for="memberAccessEmail">CORREO PARA EL ACCESO</label><input id="memberAccessEmail" type="email" maxlength="254" value="${escapeHtml(profile.contact_email || '')}" placeholder="correo@ejemplo.com"><div class="access-actions"><button type="button" class="btn btn-outline" id="linkExistingMemberAccount">Vincular cuenta existente</button><button type="button" class="btn btn-primary" id="inviteMemberAccount">Enviar invitación y vincular →</button></div><small class="field-help">La invitación llega por correo y permite crear una contraseña propia. Para cuentas ya existentes, utiliza la opción de vincular.</small>`}</div>
     <div class="status-edit"><label for="detailStatus">ESTADO DE MEMBRESÍA / CREDENCIAL</label><select id="detailStatus"><option ${member.status==='Activo'?'selected':''}>Activo</option><option ${member.status==='Suspendido'?'selected':''}>Suspendido</option><option ${member.status==='Revocado'?'selected':''}>Revocado</option><option ${member.status==='Vencido'?'selected':''} disabled>Vencido (requiere renovación)</option><option ${member.status==='Sustituido'?'selected':''} disabled>Sustituido</option><option ${member.status==='Inactivo'?'selected':''}>Inactivo</option></select></div>
     ${connectedMode ? `<div class="renewal-box"><label for="renewalExpiry">NUEVA VIGENCIA PARA REEMISIÓN</label><input id="renewalExpiry" type="date" min="${new Date().toISOString().slice(0,10)}" value="${defaultRenewalDate()}"><small>La reemisión sustituye la credencial activa anterior. El folio histórico se conserva, pero la credencial anterior dejará de validarse.</small><button class="btn btn-outline" type="button" id="issueReplacement">Emitir credencial renovada →</button></div>` : ''}
     <div class="detail-actions"><button class="btn btn-ghost" data-close-detail>Cancelar</button><button class="btn btn-primary" id="saveMemberStatus">Guardar cambio →</button></div>
     <p class="field-help">${member.historical ? 'Este es un folio histórico de fundador; el folio no se modifica.' : 'Identificador aleatorio asignado a esta credencial.'} ${connectedMode ? 'Los cambios se guardarán en la base de datos central y quedarán registrados.' : 'Los cambios son locales a este navegador.'}</p>`;
   document.getElementById('detailModal').classList.remove('hidden');
 }
+
 function findById(value) {
   const query = String(value || '').trim().toUpperCase();
   if (!query) return null;
@@ -261,14 +340,125 @@ function isoDateToSpanish(value) {
   const parts = String(value || '').slice(0, 10).split('-');
   return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : value;
 }
+function spanishDateFromIso(value) {
+  if (!value) return '—';
+  const date = new Date(`${String(value).slice(0,10)}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'});
+}
+function profileStatus(profile) {
+  const member = profile.member || {};
+  const credential = profile.credential || {};
+  if (credential.credential_status === 'revoked') return 'Revocado';
+  if (credential.credential_status === 'replaced') return 'Sustituido';
+  if (member.membership_status === 'suspended') return 'Suspendido';
+  if (member.membership_status === 'inactive') return 'Inactivo';
+  const expiry = credential.expires_on || member.expires_on;
+  if (expiry && new Date(`${expiry}T23:59:59`) < new Date()) return 'Vencido';
+  return 'Activo';
+}
+function buildVerificationUrl(identifier) {
+  const url = new URL(window.location.href);
+  url.hash = '';
+  url.search = '';
+  url.searchParams.set('verificar', identifier);
+  return url.toString();
+}
+function renderMemberRequests(requests = []) {
+  const target = document.getElementById('memberRequestsList');
+  if (!target) return;
+  if (!requests.length) {
+    target.innerHTML = '<p class="muted">No hay solicitudes registradas.</p>';
+    return;
+  }
+  target.innerHTML = requests.map(request => {
+    const status = request.request_status === 'approved' ? 'Aprobada' : request.request_status === 'rejected' ? 'Rechazada' : 'Pendiente';
+    const changes = Object.entries(request.requested_changes || {}).map(([key,value]) => `${profileChangeLabel(key)}: ${value || '—'}`).join(' · ');
+    return `<article class="member-request-row"><div><b>${status}</b><small>${new Date(request.submitted_at).toLocaleDateString('es-MX')} · ${escapeHtml(changes)}</small>${request.admin_response ? `<small>Respuesta de Directiva: ${escapeHtml(request.admin_response)}</small>` : ''}</div><span class="request-status ${request.request_status}">${status}</span></article>`;
+  }).join('');
+}
+function showMemberPortal(profile) {
+  currentMemberProfile = profile;
+  const member = profile.member || {};
+  const detail = profile.profile || {};
+  const credential = profile.credential || {};
+  const identifier = credential.public_identifier || member.legacy_folio || 'Sin credencial';
+  const status = profileStatus(profile);
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('passwordSetupScreen').classList.add('hidden');
+  document.getElementById('publicScreen').classList.add('hidden');
+  document.getElementById('appShell').classList.add('hidden');
+  document.getElementById('memberPortalScreen').classList.remove('hidden');
+  document.getElementById('memberPortalName').textContent = member.full_name || 'Afiliado PAS';
+  document.getElementById('memberPortalTitle').innerHTML = 'Mi expediente <em>institucional.</em>';
+  document.getElementById('memberPortalAccountEmail').textContent = signedInEmail || '';
+  document.getElementById('memberPortalType').textContent = member.member_type || (signedInRole === 'colaborador' ? 'Colaborador' : 'Afiliado');
+  document.getElementById('memberPortalFolio').textContent = `Folio / identificador: ${member.legacy_folio || identifier}`;
+  const badge = document.getElementById('memberPortalStatus');
+  badge.textContent = status;
+  badge.className = `status-pill ${statusClass(status)}`;
+  document.getElementById('memberPortalIssued').textContent = spanishDateFromIso(member.issued_on);
+  document.getElementById('memberPortalExpires').textContent = spanishDateFromIso(credential.expires_on || member.expires_on);
+  document.getElementById('memberPortalSpecialty').textContent = detail.specialty || 'Por completar';
+  document.getElementById('memberPortalLicense').textContent = detail.professional_license || 'Por completar';
+  document.getElementById('memberPortalCredential').textContent = identifier;
+  const verifyUrl = identifier !== 'Sin credencial' ? buildVerificationUrl(identifier) : '';
+  const link = document.getElementById('memberPortalVerifyLink');
+  link.href = verifyUrl || '#';
+  link.classList.toggle('disabled-link', !verifyUrl);
+  const canvas = document.getElementById('memberPortalQrCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (verifyUrl && window.QRCode?.toCanvas) {
+    window.QRCode.toCanvas(canvas, verifyUrl, {width:168, margin:1, color:{dark:'#173655',light:'#ffffff'}})
+      .catch(error => { console.warn('No se pudo generar el QR.', error); });
+  } else {
+    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#52677e'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('QR no disponible', canvas.width/2, canvas.height/2);
+  }
+  const fields = {
+    profileEmail: detail.contact_email || signedInEmail || '',
+    profilePhone: detail.phone || '',
+    profileLicense: detail.professional_license || '',
+    profileSpecialty: detail.specialty || '',
+    profileCity: detail.city || '',
+    profileState: detail.state || '',
+    profileAbout: detail.about || ''
+  };
+  Object.entries(fields).forEach(([id,value]) => { document.getElementById(id).value = value; });
+  renderMemberRequests(profile.requests || []);
+}
+async function activateAuthenticatedRole(role, session) {
+  signedInRole = role || '';
+  signedInEmail = session?.user?.email || signedInEmail || '';
+  if (role === 'directiva') {
+    members = await pasBackend.listMembers();
+    document.getElementById('activeUserName').textContent = signedInEmail || 'Directiva PAS';
+    document.getElementById('activeUserRole').textContent = 'Directiva · Conectado';
+    document.getElementById('signOutButton').classList.remove('hidden');
+    showApp();
+    return;
+  }
+  if (role === 'afiliado' || role === 'colaborador') {
+    const profile = await pasBackend.getMyProfile();
+    showMemberPortal(profile);
+    return;
+  }
+  await pasBackend.signOut();
+  signedInRole = '';
+  showLoginWithNotice('Tu cuenta todavía no tiene un rol institucional válido. Solicita apoyo a la Directiva PAS.');
+}
+
 function openPublicScreen() {
   document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('memberPortalScreen').classList.add('hidden');
   document.getElementById('appShell').classList.add('hidden');
   document.getElementById('publicScreen').classList.remove('hidden');
 }
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('publicScreen').classList.add('hidden');
+  document.getElementById('memberPortalScreen').classList.add('hidden');
   document.getElementById('appShell').classList.remove('hidden');
   renderAll();
   showView('overview');
@@ -276,6 +466,7 @@ function showApp() {
 function showPasswordSetupScreen(message = '') {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('publicScreen').classList.add('hidden');
+  document.getElementById('memberPortalScreen').classList.add('hidden');
   document.getElementById('appShell').classList.add('hidden');
   const screen = document.getElementById('passwordSetupScreen');
   screen.classList.remove('hidden');
@@ -287,14 +478,15 @@ function showPasswordSetupScreen(message = '') {
 function showLoginWithNotice(message) {
   document.getElementById('passwordSetupScreen').classList.add('hidden');
   document.getElementById('appShell').classList.add('hidden');
+  document.getElementById('memberPortalScreen').classList.add('hidden');
   document.getElementById('publicScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
   const hint = document.querySelector('.login-hint');
   if (hint) hint.innerHTML = `<span class="info-dot">i</span> ${escapeHtml(message)}`;
 }
 
-// Con proyecto Supabase configurado se exige sesión y rol de Directiva.
-// Sin configuración, el botón conserva la experiencia local de demostración.
+// Con Supabase configurado, el acceso se enruta según el rol: Directiva, afiliado o colaborador.
+// Sin configuración, se conserva la experiencia local limitada para revisión visual.
 document.getElementById('passwordSetupForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!connectedMode) {
@@ -322,20 +514,10 @@ document.getElementById('passwordSetupForm').addEventListener('submit', async ev
     document.getElementById('setupPassword').value = '';
     document.getElementById('setupPasswordConfirm').value = '';
     const role = await pasBackend.currentRole();
-    if (role === 'directiva') {
-      const session = await pasBackend.getSession();
-      signedInEmail = session?.user?.email || '';
-      members = await pasBackend.listMembers();
-      document.getElementById('activeUserName').textContent = signedInEmail || 'Directiva PAS';
-      document.getElementById('activeUserRole').textContent = 'Directiva · Conectado';
-      document.getElementById('signOutButton').classList.remove('hidden');
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/([?&])type=(invite|recovery)(&|$)/, '$1').replace(/[?&]$/, ''));
-      showApp();
-      showToast('Cuenta activada. Bienvenido a PAS ID.');
-    } else {
-      await pasBackend.signOut();
-      showLoginWithNotice('Tu contraseña quedó configurada. Tu cuenta aún no tiene un rol institucional asignado; solicita a la Directiva que active tu acceso.');
-    }
+    const session = await pasBackend.getSession();
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/([?&])type=(invite|recovery)(&|$)/, '$1').replace(/[?&]$/, ''));
+    await activateAuthenticatedRole(role, session);
+    showToast('Cuenta activada. Bienvenido a PAS ID.');
   } catch (error) {
     message.textContent = error.message || 'No fue posible guardar la contraseña. Solicita una nueva invitación si el enlace venció.';
     message.classList.add('show');
@@ -359,15 +541,7 @@ document.getElementById('enterDemo').addEventListener('click', async () => {
     const sessionData = await pasBackend.signIn(email, password);
     signedInEmail = sessionData.user?.email || email;
     const role = await pasBackend.currentRole();
-    if (role !== 'directiva') {
-      await pasBackend.signOut();
-      throw new Error('La cuenta no tiene permisos de Directiva PAS. El portal de afiliados se habilitará en una fase posterior.');
-    }
-    members = await pasBackend.listMembers();
-    document.getElementById('activeUserName').textContent = signedInEmail;
-    document.getElementById('activeUserRole').textContent = 'Directiva · Conectado';
-    document.getElementById('signOutButton').classList.remove('hidden');
-    if (!urlParams.has('verificar')) showApp();
+    if (!urlParams.has('verificar')) await activateAuthenticatedRole(role, sessionData);
   } catch (error) {
     showToast(error.message || 'No se pudo iniciar sesión.');
   } finally {
@@ -384,6 +558,48 @@ document.getElementById('backToLogin').addEventListener('click', () => {
   document.getElementById('publicScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
 });
+document.getElementById('profileChangeForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!currentMemberProfile) return;
+  const existing = currentMemberProfile.profile || {};
+  const values = {
+    contact_email: document.getElementById('profileEmail').value.trim(),
+    phone: document.getElementById('profilePhone').value.trim(),
+    professional_license: document.getElementById('profileLicense').value.trim(),
+    specialty: document.getElementById('profileSpecialty').value.trim(),
+    city: document.getElementById('profileCity').value.trim(),
+    state: document.getElementById('profileState').value.trim(),
+    about: document.getElementById('profileAbout').value.trim()
+  };
+  const changes = Object.fromEntries(Object.entries(values).filter(([key,value]) => String(value) !== String(existing[key] || '')));
+  if (!Object.keys(changes).length) { showToast('No hay cambios nuevos para enviar.'); return; }
+  const button = document.getElementById('submitProfileChanges');
+  button.disabled = true; button.textContent = 'Enviando solicitud…';
+  try {
+    await pasBackend.submitProfileChangeRequest(changes);
+    currentMemberProfile = await pasBackend.getMyProfile();
+    showMemberPortal(currentMemberProfile);
+    showToast('Solicitud enviada. La Directiva revisará los cambios.');
+  } catch (error) {
+    showToast(error.message || 'No se pudo enviar la solicitud.');
+  } finally {
+    button.disabled = false; button.textContent = 'Enviar actualización a Directiva →';
+  }
+});
+document.getElementById('memberSignOutButton').addEventListener('click', async () => {
+  try { if (connectedMode) await pasBackend.signOut(); } catch (error) { console.warn(error); }
+  signedInRole = ''; signedInEmail = ''; currentMemberProfile = null;
+  document.getElementById('memberPortalScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('demoPassword').value = '';
+  showToast('Sesión cerrada.');
+});
+document.getElementById('copyMemberCredential').addEventListener('click', async () => {
+  const value = document.getElementById('memberPortalCredential').textContent.trim();
+  try { await navigator.clipboard.writeText(value); showToast('Identificador copiado.'); }
+  catch (_) { showToast('No se pudo copiar. Selecciona el identificador manualmente.'); }
+});
+
 document.getElementById('publicVerifyForm').addEventListener('submit', event => {
   event.preventDefault();
   const value = document.getElementById('publicVerifyInput').value;
@@ -403,6 +619,18 @@ document.addEventListener('click', event => {
   if (manage) openMemberDetail(manage.dataset.manage);
   if (event.target.closest('[data-close-modal]')) closeModal('memberModal');
   if (event.target.closest('[data-close-detail]')) closeModal('detailModal');
+});
+document.getElementById('credentialList').addEventListener('click', event => {
+  const button = event.target.closest('[data-preview-credential]');
+  if (!button) return;
+  selectedCredentialMemberId = button.dataset.previewCredential;
+  renderCredentials();
+});
+document.getElementById('copyCredentialPreviewUrl').addEventListener('click', async event => {
+  const url = event.currentTarget.dataset.url || '';
+  if (!url) return;
+  try { await navigator.clipboard.writeText(url); showToast('Enlace de verificación copiado para QR/NFC.'); }
+  catch (_) { showToast('No se pudo copiar el enlace.'); }
 });
 document.getElementById('memberSearch').addEventListener('input', renderMembers);
 document.getElementById('statusFilter').addEventListener('change', renderMembers);
@@ -449,6 +677,48 @@ document.getElementById('memberForm').addEventListener('submit', async event => 
   showToast(`Miembro agregado a la demostración: ${newMember.id}`);
 });
 document.getElementById('detailContent').addEventListener('click', async event => {
+  if (event.target.id === 'saveAdminMemberProfile') {
+    const member = members.find(item => item.id === selectedMemberId);
+    if (!member) return;
+    const changes = {
+      contact_email: document.getElementById('adminProfileEmail').value.trim(),
+      phone: document.getElementById('adminProfilePhone').value.trim(),
+      professional_license: document.getElementById('adminProfileLicense').value.trim(),
+      specialty: document.getElementById('adminProfileSpecialty').value.trim(),
+      city: document.getElementById('adminProfileCity').value.trim(),
+      state: document.getElementById('adminProfileState').value.trim(),
+      about: document.getElementById('adminProfileAbout').value.trim()
+    };
+    event.target.disabled = true;
+    try {
+      await pasBackend.updateMemberProfile(member.backendId, changes);
+      members = await pasBackend.listMembers();
+      openMemberDetail(selectedMemberId);
+      showToast('Expediente actualizado.');
+    } catch (error) {
+      showToast(error.message || 'No se pudo actualizar el expediente.');
+      event.target.disabled = false;
+    }
+    return;
+  }
+  const accessButton = event.target.closest('#inviteMemberAccount, #linkExistingMemberAccount');
+  if (accessButton) {
+    const member = members.find(item => item.id === selectedMemberId);
+    const email = document.getElementById('memberAccessEmail')?.value.trim();
+    if (!member || !email) { showToast('Escribe el correo de la cuenta.'); return; }
+    const action = accessButton.id === 'inviteMemberAccount' ? 'invite' : 'link_existing';
+    accessButton.disabled = true;
+    try {
+      const result = await pasBackend.manageMemberAccess(action, member.backendId, email);
+      members = await pasBackend.listMembers();
+      openMemberDetail(selectedMemberId);
+      showToast(result.warning || result.message || 'Cuenta vinculada correctamente.');
+    } catch (error) {
+      showToast(error.message || 'No se pudo vincular la cuenta.');
+      accessButton.disabled = false;
+    }
+    return;
+  }
   const member = members.find(item => item.id === selectedMemberId);
   if (!member) return;
   if (event.target.id === 'issueReplacement') {
@@ -491,6 +761,23 @@ document.getElementById('detailContent').addEventListener('click', async event =
   saveMembers(); renderAll(); closeModal('detailModal');
   showToast(`Estado actualizado en esta demostración: ${nextStatus}`);
 });
+document.getElementById('profileRequestsList').addEventListener('click', async event => {
+  const button = event.target.closest('[data-review-request]');
+  if (!button) return;
+  const requestId = button.dataset.reviewRequest;
+  const decision = button.dataset.decision;
+  button.disabled = true;
+  try {
+    await pasBackend.reviewProfileChangeRequest(requestId, decision);
+    await loadProfileRequests();
+    if (decision === 'approved') members = await pasBackend.listMembers();
+    showToast(decision === 'approved' ? 'Cambios aprobados y aplicados al expediente.' : 'Solicitud rechazada.');
+  } catch (error) {
+    showToast(error.message || 'No se pudo resolver la solicitud.');
+    button.disabled = false;
+  }
+});
+
 document.getElementById('openSidebar').addEventListener('click', () => {
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('sidebarScrim').classList.add('show');
@@ -524,7 +811,7 @@ if (backendUnavailable) {
   if (internalIntro) internalIntro.textContent = 'Comprueba en línea el estado vigente de una credencial PAS.';
   demoRibbon.classList.add('connected-ribbon');
   loginButton.innerHTML = 'Iniciar sesión <span>→</span>';
-  loginHint.innerHTML = '<span class="info-dot">i</span> Acceso protegido. Se requiere una cuenta institucional autorizada por la Directiva PAS.';
+  loginHint.innerHTML = '<span class="info-dot">i</span> Acceso protegido. Directiva y afiliados ingresan con sus cuentas personales autorizadas.';
 } else {
   renderAll();
 }
@@ -553,6 +840,7 @@ document.getElementById('signOutButton').addEventListener('click', async () => {
   try { if (connectedMode) await pasBackend.signOut(); }
   catch (error) { console.warn('No se pudo cerrar la sesión de Supabase.', error); }
   members = loadMembers();
+  signedInRole = ''; signedInEmail = ''; currentMemberProfile = null;
   document.getElementById('appShell').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('signOutButton').classList.add('hidden');
@@ -580,16 +868,8 @@ const authFlowError = authHashParams.get('error_description') || urlParams.get('
     }
     if (!session) return;
     const role = await pasBackend.currentRole();
-    if (role !== 'directiva') {
-      await pasBackend.signOut();
-      return;
-    }
-    signedInEmail = session.user?.email || '';
-    members = await pasBackend.listMembers();
-    document.getElementById('activeUserName').textContent = signedInEmail || 'Directiva PAS';
-    document.getElementById('activeUserRole').textContent = 'Directiva · Conectado';
-    document.getElementById('signOutButton').classList.remove('hidden');
-    if (!urlParams.has('verificar')) showApp();
+    if (urlParams.has('verificar')) return;
+    await activateAuthenticatedRole(role, session);
   } catch (error) {
     console.error('No se pudo recuperar la sesión de PAS ID.', error);
     showToast('No se pudo recuperar la sesión. Inicia sesión nuevamente.');

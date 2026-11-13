@@ -1,25 +1,17 @@
-# PAS ID 0.3 · Actualización de activación de invitaciones
+# PAS ID · Etapa 2
 
-Este paquete reemplaza cuatro archivos para habilitar la pantalla donde una persona invitada establece su contraseña.
+Esta versión añade las cuentas individuales de afiliados/colaboradores y su expediente digital privado.
 
-## Archivos incluidos
-- `index.html`
-- `styles.css`
-- `app.js`
-- `pas-id-backend.js`
+## Orden de instalación
 
-## Instrucciones de publicación
-1. En el repositorio GitHub `PAS-ID`, reemplaza estos cuatro archivos en la raíz por los incluidos aquí.
-2. **No reemplaces `config.js`**: conserva la URL y la clave publicable que ya configuraste en GitHub.
-3. No subas contraseñas, claves SMTP ni claves `service_role`.
-4. Espera a que GitHub Pages complete la publicación.
-5. Solo después, abre el enlace de invitación de Supabase.
+1. Realiza un respaldo de Supabase.
+2. Ejecuta una sola vez `supabase/002_member_portal.sql` en Supabase SQL Editor. No vuelvas a ejecutar el esquema `001`.
+3. Despliega la función `supabase/functions/manage-member-access` y configura su secreto `PAS_ID_SITE_URL` siguiendo `docs/ETAPA-2-INSTALACION.md`.
+4. Sube el contenido del ZIP a la raíz de tu repositorio PAS-ID, conservando `config.js` y `assets/pas-logo.png`.
+5. Inicia sesión como Directiva, registra un miembro de prueba e invítalo desde la ficha de gestión.
 
-## Flujo
-- El enlace de tipo `invite` abre una pantalla de configuración de contraseña.
-- La contraseña se guarda mediante `supabase.auth.updateUser`.
-- Si el usuario ya tiene rol `directiva`, el panel administrativo se abre.
-- Si todavía no tiene rol, se cierra la sesión y se indica que falta autorización institucional.
-- El enlace de recuperación también reutiliza esta pantalla.
+## Seguridad
 
-La cuenta de prueba no recibe permisos de Directiva automáticamente. Asigna ese rol únicamente a la cuenta autorizada.
+No añadas nunca la clave `service_role` a `config.js`, HTML, JavaScript del navegador o GitHub. Esa clave se guarda únicamente en Secrets de Supabase.
+
+La cuenta de prueba debe tener rol `afiliado` o `colaborador`, y su perfil debe abrir en el portal individual. La Directiva mantiene el panel administrativo.

@@ -66,11 +66,62 @@
       if (!configured) throw new Error('Supabase no está configurado.');
       const rows = await unwrap(
         client.from('members')
-          .select('id,legacy_folio,full_name,member_type,membership_status,issued_on,expires_on,is_historical,credentials(id,public_identifier,credential_status,issued_at,expires_on,is_historical)')
+          .select('id,legacy_folio,full_name,member_type,membership_status,issued_on,expires_on,is_historical,auth_user_id,member_profiles(contact_email,phone,professional_license,specialty,city,state,about),credentials(id,public_identifier,credential_status,issued_at,expires_on,is_historical)')
           .order('full_name', { ascending: true }),
         'directorio de miembros'
       );
       return rows.map(mapMember);
+    },
+
+    async getMyProfile() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('get_my_pas_profile'), 'expediente del afiliado');
+    },
+
+    async submitProfileChangeRequest(changes) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('submit_my_pas_profile_change_request', { p_changes: changes }), 'solicitud de actualización');
+    },
+
+    async listProfileChangeRequests() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('member_profile_change_requests')
+        .select('id,member_id,requested_changes,request_status,submitted_at,members(full_name,legacy_folio,member_type)')
+        .order('submitted_at', { ascending: false }), 'solicitudes de actualización');
+    },
+
+    async updateMemberProfile(memberId, changes) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('update_pas_member_profile', {
+        p_member_id: memberId,
+        p_changes: changes
+      }), 'actualización del expediente');
+    },
+
+    async reviewProfileChangeRequest(requestId, decision, response = '') {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('review_pas_profile_change_request', {
+        p_request_id: requestId,
+        p_decision: decision,
+        p_admin_response: response || null
+      }), 'resolución de solicitud');
+    },
+
+    async manageMemberAccess(action, memberId, email) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const result = await client.functions.invoke('manage-member-access', {
+        body: { action, member_id: memberId, email }
+      });
+      if (result.error) {
+        let message = result.error.message || 'No se pudo administrar el acceso.';
+        try {
+          const payload = await result.error.context?.json?.();
+          if (payload?.error) message = payload.error;
+        } catch (_) {}
+        throw new Error(message);
+      }
+      if (result.data?.error) throw new Error(result.data.error);
+      return result.data;
     },
 
     async registerMember({ name, type, expiresOn }) {
@@ -147,7 +198,9 @@
       expires: isoToSpanish(credential?.expires_on || row.expires_on),
       status,
       historical: Boolean(row.is_historical),
-      membershipStatus: row.membership_status
+      membershipStatus: row.membership_status,
+      authUserId: row.auth_user_id || null,
+      profile: Array.isArray(row.member_profiles) ? (row.member_profiles[0] || {}) : (row.member_profiles || {})
     };
   }
 
