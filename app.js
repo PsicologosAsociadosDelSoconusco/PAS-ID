@@ -19,6 +19,64 @@ let selectedCredentialMemberId = null;
 let pendingRandomId = null;
 let toastTimer;
 
+
+// Generador QR resiliente: usa la biblioteca local si está disponible y,
+ // si no, solicita únicamente la imagen del QR a un servicio externo.
+ // El contenido codificado es el enlace público de verificación PAS.
+async function renderPasQr(canvas, value, size) {
+  if (!canvas || !value) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = size;
+  canvas.height = size;
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  if (window.QRCode?.toCanvas) {
+    try {
+      await window.QRCode.toCanvas(canvas, value, {
+        width: size, margin: 1,
+        color: { dark: '#173655', light: '#ffffff' }
+      });
+      return;
+    } catch (error) {
+      console.warn('Falló la biblioteca QR local; se intentará el generador alternativo.', error);
+    }
+  }
+
+  const makeImage = (url) => new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('No se pudo cargar la imagen QR alternativa.'));
+    image.referrerPolicy = 'no-referrer';
+    image.src = url;
+  });
+
+  const encoded = encodeURIComponent(value);
+  const urls = [
+    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=1&data=${encoded}`,
+    `https://quickchart.io/qr?size=${size}&margin=1&text=${encoded}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const image = await makeImage(url);
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(image, 0, 0, size, size);
+      return;
+    } catch (error) {
+      console.warn('Un proveedor QR alternativo no respondió; se probará el siguiente.', error);
+    }
+  }
+
+  ctx.fillStyle = '#f1f4f7';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#52677e';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('QR no disponible', size / 2, size / 2);
+}
+
 // Ajusta las etiquetas que en el HTML base describen el modo de demostración.
 // En modo conectado, los formularios de altas y cambios utilizan las funciones RPC de Supabase.
 if (connectedMode) {
@@ -179,14 +237,7 @@ function renderCredentials() {
   qrHeading.textContent = `QR · ${preview.name}`;
   qrHelp.textContent = 'El mismo enlace puede grabarse en una etiqueta NFC compatible.';
   copyButton.disabled = false; copyButton.dataset.url = verifyUrl;
-  const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
-  if (window.QRCode?.toCanvas) {
-    window.QRCode.toCanvas(canvas, verifyUrl, {width:112, margin:1, color:{dark:'#173655',light:'#ffffff'}})
-      .catch(error => { console.warn('No se pudo generar el QR de la credencial.', error); });
-  } else {
-    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('QR no disponible',canvas.width/2,canvas.height/2);
-  }
+  renderPasQr(canvas, verifyUrl, 112);
 }
 function renderAll() {
   updateStats(); renderRecent(); renderMembers(); renderCredentials();
@@ -432,16 +483,8 @@ function showMemberPortal(profile) {
   link.href = verifyUrl || '#';
   link.classList.toggle('disabled-link', !verifyUrl);
   const canvas = document.getElementById('memberPortalQrCanvas');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (verifyUrl && window.QRCode?.toCanvas) {
-    window.QRCode.toCanvas(canvas, verifyUrl, {width:168, margin:1, color:{dark:'#173655',light:'#ffffff'}})
-      .catch(error => { console.warn('No se pudo generar el QR.', error); });
-  } else {
-    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#52677e'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('QR no disponible', canvas.width/2, canvas.height/2);
-  }
+  if (verifyUrl) renderPasQr(canvas, verifyUrl, 168);
+  else { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
   const fields = {
     profileEmail: detail.contact_email || signedInEmail || '',
     profilePhone: detail.phone || '',
