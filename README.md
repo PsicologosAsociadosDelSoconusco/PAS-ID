@@ -39,3 +39,4 @@ La interfaz no mantiene un directorio alternativo en el navegador. Los datos ope
 Desde el Directorio de miembros, Directiva puede abrir la ficha de un afiliado o colaborador con cuenta vinculada y elegir **Eliminar cuenta de acceso**. La operación solicita confirmación y se ejecuta en la Edge Function `manage-member-access`, que valida la sesión y el rol `directiva` en el servidor. No elimina el expediente, las credenciales, asistencias ni constancias. Las cuentas de Directiva, la cuenta del usuario que ejecuta la acción y los registros históricos de fundadores están protegidos.
 
 Después de actualizar `supabase/functions/manage-member-access/index.ts`, vuelve a desplegar la función `manage-member-access` desde Supabase (o mediante Supabase CLI). No se requiere una migración SQL adicional para esta opción.
+La presentación profesional admite hasta **1,200 caracteres** tanto en el portal del miembro como en la edición administrativa.

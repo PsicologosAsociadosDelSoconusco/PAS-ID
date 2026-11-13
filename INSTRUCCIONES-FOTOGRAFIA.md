@@ -10,3 +10,4 @@ PAS ID · Actualización de fotografía profesional
 5) Desde Directiva, revisa la solicitud con la vista previa y apruébala. La foto aparecerá en la verificación pública QR tras aprobarla.
 
 Formatos: JPG, PNG o WEBP. Tamaño máximo: 3 MB. Correo y teléfono no se publican.
+La presentación profesional admite hasta **1,200 caracteres** tanto en el portal del miembro como en la edición administrativa.

@@ -17,3 +17,4 @@ El correo de contacto y el teléfono permanecen privados y no son devueltos por 
 4. La verificación seguirá utilizando los QR y folios existentes.
 
 Los datos se toman de `public.member_profiles`. Los perfiles sin información capturada simplemente no mostrarán esos apartados. Los fundadores conservan sus folios históricos.
+La presentación profesional admite hasta **1,200 caracteres** tanto en el portal del miembro como en la edición administrativa.
