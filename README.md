@@ -27,3 +27,6 @@ La clave `service_role` se usa solo como secreto dentro de Supabase Edge Functio
 ## Instalación
 
 Sigue `docs/ETAPA-2-INSTALACION.md`. No vuelvas a ejecutar el esquema inicial si ya está instalado; aplica únicamente la migración 002.
+
+## Etapa 3
+La versión incorpora gestión de eventos y asistencia manual para Directiva. Consulta `docs/ETAPA-3-EVENTOS.md` antes de publicar.

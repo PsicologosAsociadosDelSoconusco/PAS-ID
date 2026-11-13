@@ -145,8 +145,7 @@ function renderCredentials() {
   const list = document.getElementById('credentialList');
   list.innerHTML = members.map(member => `
     <div class="credential-row"><div class="member-avatar">${escapeHtml(initials(member.name))}</div><div><b>${escapeHtml(member.name)}</b><small>${escapeHtml(member.id)} · ${escapeHtml(effectiveStatus(member))}</small></div><button type="button" class="text-button" data-preview-credential="${escapeHtml(member.id)}">Ver tarjeta</button></div>`).join('');
-  const preview = members.find(member => member.id === selectedCredentialMemberId)
-    || members.find(member => effectiveStatus(member) === 'Activo') || members[0];
+  const preview = members.find(member => member.id === selectedCredentialMemberId) || null;
   const badge = document.getElementById('credentialPreviewBadge');
   const name = document.getElementById('credentialPreviewName');
   const type = document.getElementById('credentialPreviewType');
@@ -160,11 +159,11 @@ function renderCredentials() {
   const qrHelp = document.getElementById('credentialQrHelp');
   const copyButton = document.getElementById('copyCredentialPreviewUrl');
   if (!preview) {
-    name.textContent = 'Sin miembros registrados'; type.textContent = 'PAS ID'; identifier.textContent = '—'; monogram.textContent = 'PAS';
-    issued.textContent = '—'; expires.textContent = '—'; status.innerHTML = '<i></i> SIN REGISTROS';
-    qrHeading.textContent = 'Sin credencial'; qrHelp.textContent = 'Registra un miembro para generar el enlace de verificación.';
+    name.textContent = members.length ? 'Selecciona un miembro' : 'Sin miembros registrados'; type.textContent = 'VISTA DE DIRECTIVA'; identifier.textContent = '—'; monogram.textContent = 'PAS';
+    issued.textContent = '—'; expires.textContent = '—'; status.innerHTML = '<i></i> SIN SELECCIÓN';
+    badge.textContent = 'VISTA GENERAL'; qrHeading.textContent = 'Sin credencial seleccionada'; qrHelp.textContent = 'Elige «Ver tarjeta» en un miembro del directorio para consultar su credencial.';
     copyButton.disabled = true; copyButton.dataset.url = '';
-    const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+    const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#f1f4f7'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#52677e'; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.fillText('SELECCIONA',canvas.width/2,canvas.height/2-4); ctx.fillText('UN MIEMBRO',canvas.width/2,canvas.height/2+10);
     return;
   }
   const publicId = preview.publicIdentifier || preview.id;
@@ -229,6 +228,7 @@ function showView(viewName) {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarScrim').classList.remove('show');
   if (viewName === 'members') loadProfileRequests();
+  if (viewName === 'events') loadEventsModule();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 function openMemberModal() {
@@ -882,3 +882,114 @@ if (urlParams.has('verificar')) {
   document.getElementById('publicVerifyInput').value = urlParams.get('verificar');
   renderVerification(urlParams.get('verificar'), 'publicVerifyResult');
 }
+
+// Módulo operativo de eventos y control de asistencia (Directiva).
+let pasEvents = [];
+let selectedEventId = null;
+function eventDateLabel(value) {
+  if (!value) return 'Fecha pendiente';
+  return new Date(value).toLocaleString('es-MX', { dateStyle:'medium', timeStyle:'short' });
+}
+function renderEventsList() {
+  const target = document.getElementById('eventsList');
+  if (!target) return;
+  if (!pasEvents.length) { target.innerHTML = '<p class="events-empty">Todavía no hay eventos registrados. Crea el primero para comenzar.</p>'; return; }
+  target.innerHTML = pasEvents.map(item => `<article class="event-item ${item.id === selectedEventId ? 'selected' : ''}"><button class="event-select" type="button" data-select-event="${escapeHtml(item.id)}"><span class="event-date">${escapeHtml(eventDateLabel(item.starts_at))}</span><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.location || 'Lugar por definir')} · ${item.published ? 'Publicado' : 'Borrador'}</small></button><div class="event-actions"><button type="button" class="text-button" data-edit-event="${escapeHtml(item.id)}">${item.published ? 'Despublicar' : 'Publicar'}</button><button type="button" class="text-button danger-text" data-delete-event="${escapeHtml(item.id)}">Cancelar</button></div></article>`).join('');
+}
+async function loadEventsModule() {
+  const list = document.getElementById('eventsList');
+  if (!list) return;
+  if (!connectedMode || signedInRole !== 'directiva') {
+    list.innerHTML = '<p class="events-empty">Este módulo requiere una sesión de Directiva conectada a Supabase.</p>';
+    return;
+  }
+  list.innerHTML = '<p class="muted">Consultando la agenda institucional…</p>';
+  try {
+    pasEvents = await pasBackend.listEvents();
+    if (!pasEvents.some(item => item.id === selectedEventId)) selectedEventId = null;
+    renderEventsList();
+    if (selectedEventId) await loadAttendance(selectedEventId);
+    else showAttendanceEmpty();
+  } catch (error) {
+    list.innerHTML = `<p class="events-empty">No se pudieron cargar los eventos: ${escapeHtml(error.message)}</p>`;
+  }
+}
+function showAttendanceEmpty() {
+  document.getElementById('attendanceEmpty')?.classList.remove('hidden');
+  document.getElementById('attendanceContent')?.classList.add('hidden');
+}
+async function loadAttendance(eventId) {
+  selectedEventId = eventId;
+  renderEventsList();
+  const event = pasEvents.find(item => item.id === eventId);
+  if (!event) return showAttendanceEmpty();
+  document.getElementById('attendanceEmpty').classList.add('hidden');
+  document.getElementById('attendanceContent').classList.remove('hidden');
+  document.getElementById('selectedEventTitle').textContent = event.title;
+  const memberSelect = document.getElementById('attendanceMember');
+  const activeMembers = members.filter(member => member.backendId && member.membershipStatus !== 'inactive' && member.membershipStatus !== 'suspended');
+  memberSelect.innerHTML = '<option value="">Selecciona un miembro…</option>' + activeMembers.map(member => `<option value="${escapeHtml(member.backendId)}">${escapeHtml(member.name)} · ${escapeHtml(member.id)}</option>`).join('');
+  const list = document.getElementById('attendanceList');
+  list.innerHTML = '<p class="muted">Cargando participantes…</p>';
+  try {
+    const rows = await pasBackend.listAttendance(eventId);
+    document.getElementById('attendanceCount').textContent = `${rows.length} ${rows.length === 1 ? 'asistente' : 'asistentes'}`;
+    list.innerHTML = rows.length ? rows.map(row => `<div class="attendance-row"><div><b>${escapeHtml(row.members?.full_name || 'Miembro PAS')}</b><small>${escapeHtml(row.members?.legacy_folio || '')} · ${escapeHtml(eventDateLabel(row.checked_in_at))}</small></div><button type="button" class="text-button danger-text" data-remove-attendance="${escapeHtml(row.id)}">Quitar</button></div>`).join('') : '<p class="events-empty">Aún no hay asistentes registrados para este evento.</p>';
+  } catch (error) { list.innerHTML = `<p class="events-empty">No se pudo consultar la asistencia: ${escapeHtml(error.message)}</p>`; }
+}
+document.getElementById('openCreateEvent')?.addEventListener('click', () => {
+  document.getElementById('createEventPanel').classList.remove('hidden');
+  document.getElementById('eventStart').value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16);
+  document.getElementById('eventTitle').focus();
+});
+document.getElementById('closeCreateEvent')?.addEventListener('click', () => document.getElementById('createEventPanel').classList.add('hidden'));
+document.getElementById('refreshEvents')?.addEventListener('click', loadEventsModule);
+document.getElementById('createEventForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  const start = document.getElementById('eventStart').value;
+  const end = document.getElementById('eventEnd').value;
+  if (end && new Date(end) < new Date(start)) return showToast('La fecha de término no puede ser anterior al inicio.');
+  submit.disabled = true;
+  try {
+    await pasBackend.createEvent({ title:document.getElementById('eventTitle').value.trim(), location:document.getElementById('eventLocation').value.trim() || null, description:document.getElementById('eventDescription').value.trim() || null, starts_at:new Date(start).toISOString(), ends_at:end ? new Date(end).toISOString() : null, published:document.getElementById('eventPublished').checked });
+    event.currentTarget.reset();
+    document.getElementById('createEventPanel').classList.add('hidden');
+    showToast('Evento guardado en PAS ID.');
+    await loadEventsModule();
+  } catch (error) { showToast(error.message || 'No se pudo guardar el evento.'); }
+  finally { submit.disabled = false; }
+});
+document.getElementById('eventsList')?.addEventListener('click', async event => {
+  const select = event.target.closest('[data-select-event]');
+  const publish = event.target.closest('[data-edit-event]');
+  const remove = event.target.closest('[data-delete-event]');
+  if (select) return loadAttendance(select.dataset.selectEvent);
+  if (publish) {
+    const item = pasEvents.find(row => row.id === publish.dataset.editEvent);
+    if (!item) return;
+    try { await pasBackend.updateEvent(item.id, { published:!item.published }); showToast(item.published ? 'Evento retirado de la agenda pública.' : 'Evento publicado.'); await loadEventsModule(); }
+    catch (error) { showToast(error.message || 'No se pudo actualizar el evento.'); }
+  }
+  if (remove) {
+    const item = pasEvents.find(row => row.id === remove.dataset.deleteEvent);
+    if (!item || !confirm(`¿Cancelar «${item.title}»? Se eliminarán también sus registros de asistencia.`)) return;
+    try { await pasBackend.deleteEvent(item.id); if (selectedEventId === item.id) { selectedEventId = null; showAttendanceEmpty(); } showToast('Evento cancelado.'); await loadEventsModule(); }
+    catch (error) { showToast(error.message || 'No se pudo cancelar el evento.'); }
+  }
+});
+document.getElementById('attendanceForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const memberId = document.getElementById('attendanceMember').value;
+  if (!memberId || !selectedEventId) return;
+  const submit = event.currentTarget.querySelector('button[type="submit"]'); submit.disabled = true;
+  try { await pasBackend.addAttendance(selectedEventId, memberId); showToast('Asistencia registrada.'); await loadAttendance(selectedEventId); }
+  catch (error) { showToast(/duplicate|unique/i.test(error.message) ? 'Este miembro ya tiene asistencia registrada en el evento.' : (error.message || 'No se pudo registrar la asistencia.')); }
+  finally { submit.disabled = false; }
+});
+document.getElementById('attendanceList')?.addEventListener('click', async event => {
+  const button = event.target.closest('[data-remove-attendance]'); if (!button) return;
+  if (!confirm('¿Quitar este registro de asistencia?')) return;
+  try { await pasBackend.removeAttendance(button.dataset.removeAttendance); showToast('Registro de asistencia eliminado.'); await loadAttendance(selectedEventId); }
+  catch (error) { showToast(error.message || 'No se pudo quitar la asistencia.'); }
+});

@@ -161,6 +161,42 @@
       return row;
     },
 
+    async listEvents() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('events').select('id,title,description,starts_at,ends_at,location,published,created_at').order('starts_at', { ascending: false }), 'eventos');
+    },
+
+    async createEvent(eventData) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const { data: userData } = await client.auth.getUser();
+      return unwrap(client.from('events').insert({ ...eventData, created_by: userData.user?.id || null }).select('id,title,description,starts_at,ends_at,location,published,created_at').single(), 'creación del evento');
+    },
+
+    async updateEvent(eventId, changes) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('events').update(changes).eq('id', eventId).select('id,title,description,starts_at,ends_at,location,published,created_at').single(), 'actualización del evento');
+    },
+
+    async deleteEvent(eventId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      await unwrap(client.from('events').delete().eq('id', eventId), 'cancelación del evento');
+    },
+
+    async listAttendance(eventId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('event_attendance').select('id,event_id,member_id,checked_in_at,members(id,full_name,legacy_folio,member_type)').eq('event_id', eventId).order('checked_in_at', { ascending: false }), 'asistencias');
+    },
+
+    async addAttendance(eventId, memberId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('event_attendance').insert({ event_id: eventId, member_id: memberId }).select('id,event_id,member_id,checked_in_at').single(), 'registro de asistencia');
+    },
+
+    async removeAttendance(attendanceId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      await unwrap(client.from('event_attendance').delete().eq('id', attendanceId), 'eliminación de asistencia');
+    },
+
     async verify(identifier) {
       const data = await unwrap(
         client.rpc('verify_pas_credential', { p_identifier: String(identifier || '').trim() }),
