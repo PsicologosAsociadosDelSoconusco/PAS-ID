@@ -24,11 +24,21 @@ if (connectedMode) {
   const memberNote = document.querySelector('#view-members .bottom-note p');
   const verifyNote = document.querySelector('#view-verification .verify-disclaimer');
   const footerStatus = document.querySelector('.app-footer span:last-child');
+  const dashboardNote = document.querySelector('#view-overview .bottom-note p');
+  const dashboardTag = document.querySelector('#view-overview .bottom-note .note-tag');
+  const activeStatNote = document.querySelector('#view-overview #statActive')?.parentElement?.querySelector('small');
+  const verificationHeading = document.querySelector('#view-verification .page-heading p');
+  const settingsNotice = document.querySelector('#view-settings .bottom-note p');
   if (memberSubmit) memberSubmit.innerHTML = 'Registrar miembro <span>→</span>';
   if (memberHelp) memberHelp.textContent = 'El registro se guardará en la base institucional y recibirá un identificador aleatorio generado por el servidor.';
   if (memberNote) memberNote.textContent = 'Los folios históricos de los fundadores se conservan. Las nuevas altas se registran en la base institucional con identificadores aleatorios revocables.';
   if (verifyNote) verifyNote.textContent = 'La consulta se realiza en línea desde la base de datos institucional de PAS ID y muestra únicamente información autorizada para verificación pública.';
   if (footerStatus) footerStatus.innerHTML = '<i></i> PAS ID · Entorno conectado · Fase de pruebas';
+  if (dashboardNote) dashboardNote.innerHTML = '<strong>Base institucional conectada.</strong> Los registros, estados y verificaciones se consultan en Supabase. La plataforma continúa en fase de pruebas; valida los procedimientos antes de su operación institucional definitiva.';
+  if (dashboardTag) dashboardTag.textContent = 'PRUEBAS';
+  if (activeStatNote) activeStatNote.innerHTML = '<span class="stat-positive">Estado vigente</span> en la base institucional';
+  if (verificationHeading) verificationHeading.textContent = 'Comprueba en línea el estado vigente de una credencial PAS.';
+  if (settingsNotice) settingsNotice.innerHTML = '<strong>Entorno conectado en fase de pruebas.</strong> La autenticación, el directorio y la verificación pública ya consultan Supabase. Antes de operar oficialmente, completa las pruebas de permisos, respaldos, privacidad y emisión de credenciales.';
   const integrationHeading = document.querySelector('#view-settings .settings-card:nth-child(2) h3');
   const integrationEyebrow = document.querySelector('#view-settings .settings-card:nth-child(2) .eyebrow');
   const integrationStatuses = document.querySelectorAll('#view-settings .integration-list li em');
@@ -204,7 +214,7 @@ function findById(value) {
 function verificationMarkup(member) {
   const status = effectiveStatus(member);
   const label = status === 'Activo' ? 'Credencial vigente en el directorio' : `Credencial ${status.toLowerCase()}`;
-  return `<div class="verification-card-result"><div class="verification-result-head"><span class="eyebrow">RESULTADO DE CONSULTA</span>${statusBadge(status)}</div><h3>${escapeHtml(member.name)}</h3><p>${escapeHtml(member.type)} · PAS</p><div class="verification-data"><div><span>FOLIO / IDENTIFICADOR</span><b>${escapeHtml(member.id)}</b></div><div><span>VIGENCIA</span><b>${escapeHtml(formatDate(member.expires))}</b></div></div><strong class="verification-label ${statusClass(status)}">${escapeHtml(label)}</strong><small class="verification-footnote">Resultado de demostración local. La consulta oficial requerirá conexión al servidor de PAS ID.</small></div>`;
+  return `<div class="verification-card-result"><div class="verification-result-head"><span class="eyebrow">RESULTADO DE CONSULTA</span>${statusBadge(status)}</div><h3>${escapeHtml(member.name)}</h3><p>${escapeHtml(member.type)} · PAS</p><div class="verification-data"><div><span>FOLIO / IDENTIFICADOR</span><b>${escapeHtml(member.id)}</b></div><div><span>VIGENCIA</span><b>${escapeHtml(formatDate(member.expires))}</b></div></div><strong class="verification-label ${statusClass(status)}">${escapeHtml(label)}</strong><small class="verification-footnote">Consulta institucional de PAS ID.</small></div>`;
 }
 async function renderVerification(value, targetId) {
   const target = document.getElementById(targetId);
@@ -220,7 +230,11 @@ async function renderVerification(value, targetId) {
   if (connectedMode) {
     target.innerHTML = '<div class="verification-not-found"><b>Consultando PAS ID…</b><span>Verificando el estado más reciente.</span></div>';
     try {
-      const result = await pasBackend.verify(query);
+      const normalizedQuery = query.toUpperCase();
+      let result = await pasBackend.verify(normalizedQuery);
+      if ((!result || !result.found) && /^[A-Z0-9]{16,}$/.test(normalizedQuery)) {
+        result = await pasBackend.verify(`PAS-${normalizedQuery}`);
+      }
       if (!result || !result.found) {
         target.innerHTML = `<div class="verification-not-found"><b>No se encontró el registro.</b><span>Revisa el folio o identificador e inténtalo nuevamente.</span></div>`;
         return;

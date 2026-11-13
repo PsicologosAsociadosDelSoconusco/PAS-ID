@@ -34,3 +34,39 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 .setup-message.success{background:#eef7ee;color:#3e7141}
 .setup-footer{border-top:1px solid #edf0f3;padding-top:15px;margin:20px 0 0}
 @media(max-width:560px){.password-setup-screen{padding:15px}.password-setup-card{padding:25px 21px}.password-setup-card h1{font-size:27px}}
+
+
+/* PAS ID · renovación visual híbrida institucional-tecnológica */
+:root{--navy:#132a48;--gold:#d7a43c;--green:#527c61}
+.demo-ribbon{letter-spacing:.16em;font-weight:800}
+.login-screen{background:#f4f6f8;min-height:calc(100vh - 25px);gap:0}
+.login-art{background:radial-gradient(circle at 72% 28%,rgba(215,164,60,.22),transparent 25%),radial-gradient(circle at 16% 82%,rgba(83,132,104,.24),transparent 30%),linear-gradient(145deg,#10243e 0%,#173b5b 55%,#244b59 100%);position:relative;overflow:hidden}
+.login-art:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.045) 30.2%,transparent 30.5%),linear-gradient(30deg,transparent 70%,rgba(255,255,255,.04) 70.2%,transparent 70.5%);pointer-events:none}
+.art-copy{position:relative;z-index:2;max-width:780px;padding:clamp(38px,6vw,86px);justify-content:center}
+.art-message{max-width:590px;margin:clamp(55px,10vh,110px) 0 48px}
+.art-message h1{font-size:clamp(38px,4.4vw,62px);letter-spacing:-.045em;line-height:1.08}
+.art-message p{font-size:14px;line-height:1.8;max-width:460px;color:rgba(255,255,255,.77)}
+.landing-pills{display:flex;flex-wrap:wrap;gap:9px;margin-top:25px}
+.landing-pills span{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#f4f6f8;padding:8px 12px;border-radius:999px;font-size:10px;letter-spacing:.02em;backdrop-filter:blur(8px)}
+.floating-card{filter:drop-shadow(0 24px 30px rgba(0,0,0,.2));opacity:.8}
+.login-panel{background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);padding:clamp(28px,5vw,68px);display:flex;flex-direction:column;justify-content:center}
+.login-content{width:min(100%,440px);margin:0 auto;padding:42px 0}
+.login-content h2{font-size:clamp(32px,3.1vw,43px);letter-spacing:-.04em}
+.login-content>.muted{font-size:12px;line-height:1.8;max-width:390px}
+.login-field label{letter-spacing:.13em}
+.input-wrap{border-radius:10px;transition:border-color .2s,box-shadow .2s}
+.input-wrap:focus-within{border-color:#9db2c7;box-shadow:0 0 0 3px rgba(38,83,119,.09)}
+.login-button{min-height:48px;border-radius:10px;box-shadow:0 9px 20px rgba(19,42,72,.14)}
+.public-access-card{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:24px;padding:15px;border:1px solid #e6ebef;border-radius:12px;background:#f7f9fa}
+.public-access-card strong,.public-access-card span{display:block}
+.public-access-card strong{font-size:11px;color:#263d55}
+.public-access-card span{font-size:9px;line-height:1.5;color:#82909d;margin-top:4px}
+.public-access-card .text-button{white-space:nowrap;font-size:10px;font-weight:800;color:#285578}
+.login-footer{width:min(100%,440px);margin:0 auto;border-top:1px solid #edf0f2;padding-top:18px;gap:12px}
+.login-footer span{max-width:55%;text-align:right}
+.public-header,.public-footer{background:#fff}
+.verify-main{max-width:680px}
+.verify-main h1{letter-spacing:-.045em}
+.verify-search,.verify-result{box-shadow:0 12px 35px rgba(19,42,72,.06)}
+@media(max-width:820px){.login-screen{grid-template-columns:1fr}.login-art{min-height:390px}.art-copy{min-height:390px;padding:32px 28px}.art-message{margin:52px 0 26px}.art-message h1{font-size:39px}.login-panel{padding:28px 26px}.login-content{padding:24px 0}.floating-card{top:38%;right:6%}}
+@media(max-width:560px){.demo-ribbon{font-size:7px;letter-spacing:.1em}.login-art{min-height:350px}.art-copy{min-height:350px;padding:25px 21px}.art-message{margin:48px 0 22px;max-width:290px}.art-message h1{font-size:32px}.art-message p{font-size:10px;max-width:255px}.landing-pills{gap:6px}.landing-pills span{font-size:8px;padding:7px 9px}.floating-card{top:48%;right:2%;width:112px;height:76px;opacity:.55}.login-panel{padding:23px 20px}.public-access-card{align-items:flex-start;flex-direction:column}.public-access-card .text-button{padding:0}.login-footer span{font-size:7px}}
