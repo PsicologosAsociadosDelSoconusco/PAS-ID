@@ -1234,7 +1234,12 @@ async function printPasCertificate(row) {
       await window.QRCode.toCanvas(qrCanvas, verifyUrl.toString(), {width:150, margin:1, color:{dark:'#173354',light:'#ffffff'}});
       certificateQr = qrCanvas.toDataURL('image/png');
     }
-  } catch (error) { console.warn('No se pudo generar el QR de la constancia.', error); }
+  } catch (error) { console.warn('No se pudo generar el QR de la constancia con la biblioteca local.', error); }
+  // Respaldo: generar el QR como imagen remota si la biblioteca local no está disponible.
+  // El contenido del QR es únicamente la URL pública y el folio documental.
+  if (!certificateQr) {
+    certificateQr = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&color=23,51,84&bgcolor=255,255,255&data=' + encodeURIComponent(verifyUrl.toString());
+  }
   const member = Array.isArray(person.members) ? person.members[0] : person.members;
   const event = Array.isArray(person.events) ? person.events[0] : person.events;
   const w = window.open('', '_blank');
@@ -1310,7 +1315,16 @@ async function printPasCertificate(row) {
     <div class="folio">FOLIO ÚNICO: ${escapeHtml(person.certificate_number)}</div>
   </section>
 </main>
-<script>window.onload=()=>{setTimeout(()=>window.print(),250)};<\/script>
+<script>window.onload=()=>{
+  const qr=document.querySelector('.certificate-qr img');
+  const printWhenReady=()=>setTimeout(()=>window.print(),350);
+  if(!qr || qr.complete) return printWhenReady();
+  let finished=false;
+  const done=()=>{if(finished)return;finished=true;printWhenReady();};
+  qr.addEventListener('load',done,{once:true});
+  qr.addEventListener('error',done,{once:true});
+  setTimeout(done,5000);
+};<\/script>
 </body>
 </html>`;
   w.document.open();
