@@ -210,3 +210,14 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 
 /* Acción sensible: eliminar solo el acceso, nunca el expediente histórico. */
 .btn-danger{background:#fff;border:1px solid #d9a4a4;color:#9b3f3f}.btn-danger:hover{background:#fff5f5;border-color:#c77b7b}.account-delete-action{margin-top:12px}
+
+/* Perfil profesional público dentro de la verificación de credenciales */
+.verification-public-profile{margin-top:20px;padding:17px;border:1px solid #e8edf1;border-radius:11px;background:#f8fafb}
+.verification-public-profile>.eyebrow,.verification-profile-about>.eyebrow{display:block;margin-bottom:12px}
+.verification-public-profile .verification-data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.verification-public-profile .verification-data>div span,.verification-public-profile .verification-data>div b{display:block}
+.verification-public-profile .verification-data>div span{font-size:8px;letter-spacing:.1em;font-weight:800;color:#8995a3}
+.verification-public-profile .verification-data>div b{font-size:11px;color:#344b63;margin-top:4px;overflow-wrap:anywhere}
+.verification-profile-about{margin-top:14px;padding:16px;border-left:3px solid var(--gold);background:#fffaf0;border-radius:0 9px 9px 0}
+.verification-profile-about p{font-size:11px;line-height:1.8;color:#526477;margin:0;white-space:pre-line}
+@media(max-width:560px){.verification-public-profile .verification-data{grid-template-columns:1fr}}

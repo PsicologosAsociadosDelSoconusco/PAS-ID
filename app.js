@@ -391,7 +391,13 @@ async function renderVerification(value, targetId) {
       const status = statusMap[result.verification_status] || 'No disponible';
       const folio = result.legacy_folio || query.toUpperCase();
       const label = status === 'Activo' ? 'Credencial vigente en el directorio institucional' : `Credencial ${status.toLowerCase()}`;
-      target.innerHTML = `<div class="verification-card-result"><div class="verification-result-head"><span class="eyebrow">RESULTADO DE CONSULTA</span>${statusBadge(status)}</div><h3>${escapeHtml(result.full_name)}</h3><p>${escapeHtml(result.member_type)} · PAS</p><div class="verification-data"><div><span>FOLIO / IDENTIFICADOR</span><b>${escapeHtml(folio)}</b></div><div><span>VIGENCIA</span><b>${escapeHtml(formatDate(result.expires_on ? isoDateToSpanish(result.expires_on) : ''))}</b></div></div><strong class="verification-label ${statusClass(status)}">${escapeHtml(label)}</strong><small class="verification-footnote">Consulta en línea del registro institucional PAS ID.</small></div>`;
+      const publicProfile = [
+        result.specialty ? `<div><span>ÁREA / ESPECIALIDAD</span><b>${escapeHtml(result.specialty)}</b></div>` : '',
+        result.professional_license ? `<div><span>CÉDULA PROFESIONAL</span><b>${escapeHtml(result.professional_license)}</b></div>` : '',
+        (result.city || result.state) ? `<div><span>UBICACIÓN</span><b>${escapeHtml([result.city, result.state].filter(Boolean).join(', '))}</b></div>` : ''
+      ].filter(Boolean).join('');
+      const publicAbout = result.about ? `<section class="verification-profile-about"><span class="eyebrow">PRESENTACIÓN PROFESIONAL</span><p>${escapeHtml(result.about)}</p></section>` : '';
+      target.innerHTML = `<div class="verification-card-result"><div class="verification-result-head"><span class="eyebrow">RESULTADO DE CONSULTA</span>${statusBadge(status)}</div><h3>${escapeHtml(result.full_name)}</h3><p>${escapeHtml(result.member_type)} · Psicólogos Asociados del Soconusco</p><div class="verification-data"><div><span>FOLIO / IDENTIFICADOR</span><b>${escapeHtml(folio)}</b></div><div><span>VIGENCIA</span><b>${escapeHtml(formatDate(result.expires_on ? isoDateToSpanish(result.expires_on) : ''))}</b></div></div>${publicProfile ? `<section class="verification-public-profile"><span class="eyebrow">PERFIL PROFESIONAL</span><div class="verification-data">${publicProfile}</div></section>` : ''}${publicAbout}<strong class="verification-label ${statusClass(status)}">${escapeHtml(label)}</strong><small class="verification-footnote">Consulta en línea del registro institucional PAS ID. Los datos de contacto permanecen privados.</small></div>`;
     } catch (error) {
       console.error(error);
       target.innerHTML = `<div class="verification-not-found"><b>No fue posible completar la consulta.</b><span>Inténtalo nuevamente más tarde.</span></div>`;

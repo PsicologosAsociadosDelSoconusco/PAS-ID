@@ -251,7 +251,7 @@
 
     async verify(identifier) {
       const data = await unwrap(
-        client.rpc('verify_pas_credential', { p_identifier: String(identifier || '').trim() }),
+        client.rpc('verify_pas_credential_public', { p_identifier: String(identifier || '').trim() }),
         'verificación pública'
       );
       return Array.isArray(data) ? data[0] : data;
