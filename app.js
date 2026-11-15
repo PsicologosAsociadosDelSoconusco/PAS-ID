@@ -250,7 +250,17 @@ async function generateCredentialPrintPdf() {
       const identifier = member.publicIdentifier || member.id;
       const verifyUrl = buildVerificationUrl(identifier);
       let qr = '';
-      if (window.QRCode?.toDataURL) qr = await window.QRCode.toDataURL(verifyUrl, {width:420, margin:1, color:{dark:'#142b49',light:'#ffffff'}});
+      // Reutiliza el mismo generador QR que ya usa PAS ID para credenciales y perfiles.
+      if (window.QRCode?.toCanvas) {
+        const qrCanvas = document.createElement('canvas');
+        await new Promise((resolve, reject) => {
+          window.QRCode.toCanvas(qrCanvas, verifyUrl, {
+            width: 420, margin: 1,
+            color: { dark: '#142b49', light: '#ffffff' }
+          }, error => error ? reject(error) : resolve());
+        });
+        qr = qrCanvas.toDataURL('image/png');
+      }
       const photoPath = profile.photo_path;
       const photoUrl = photoPath && pasBackend?.publicProfilePhotoUrl ? pasBackend.publicProfilePhotoUrl(photoPath) : '';
       const issued = formatDate(member.issued);
@@ -282,18 +292,18 @@ async function generateCredentialPrintPdf() {
       .name-rule{height:.8mm;background:#142d59;width:68%;margin:0 auto 1.2mm;border-radius:2mm}
       .credential-front h3{font-size:7.2pt;line-height:1.1;margin:0 0 1.5mm}
       .folio{background:#5b8b3e;color:white;font-weight:bold;letter-spacing:1.8mm;font-size:10pt;padding:2.2mm 1mm;border-radius:3mm;margin:0 2mm 1.5mm}
-      .dates{display:flex;flex-direction:column;gap:.8mm;font-size:6.4pt;line-height:1.15;text-align:left;padding-left:6mm}
-      .dates span{display:block;white-space:nowrap}
+      .dates{display:flex;flex-direction:column;align-items:center;gap:.8mm;font-size:6.4pt;line-height:1.15;text-align:center;padding-left:0;margin:0 auto;width:100%}
+      .dates span{display:block;white-space:nowrap;text-align:center}
       .credential-back{padding:3mm 5mm 2mm}
       .stripe-right{right:0;background:linear-gradient(205deg,#e0a626 0 24%,#173b70 24% 100%);clip-path:polygon(100% 0,100% 100%,0 80%,35% 48%,0 0)}
       .credential-back .pas-logo{width:21mm;height:12mm;margin-bottom:.8mm}
       .credential-back h2{font-size:7.5pt;line-height:1.1;margin:0 0 1.5mm}
-      .credential-back p{font-size:5.1pt;line-height:1.22;text-align:left;margin:0 1mm 1.5mm;overflow-wrap:break-word;hyphens:auto}
+      .credential-back p{font-size:5.1pt;line-height:1.22;text-align:justify;text-justify:inter-word;margin:0 1.2mm 1.5mm;overflow-wrap:break-word;hyphens:auto}
       .credential-back h3{font-size:7.5pt;line-height:1.05;margin:1.1mm 0 .5mm}
       .contact-email{font-size:6.2pt;line-height:1.1}
       .verify-caption{font-size:5.1pt;line-height:1.1;margin-bottom:.5mm}
-      .print-qr{width:17mm;height:17mm;object-fit:contain;border:.7mm solid #5b8b3e;border-radius:1.5mm;padding:.5mm}
-      .qr-fallback{font-size:4pt;overflow-wrap:anywhere}
+      .print-qr{display:block;width:19mm;height:19mm;object-fit:contain;border:.7mm solid #5b8b3e;border-radius:1.5mm;padding:.5mm;margin:.6mm auto 0;background:#fff}
+      .qr-fallback{font-size:5pt;line-height:1.2;text-align:center;overflow-wrap:anywhere;color:#9a2f2f}
       .print-page:after{content:'';position:absolute}
       @media screen{body{background:#e9edf2;padding:12mm}.print-page{background:white;box-shadow:0 2mm 8mm #0002;margin:0 auto 10mm;padding:0}.print-page:last-child{margin-bottom:0}}
       @media print{body{background:white}.print-page{height:263.4mm}.credential-pair{margin:0}}

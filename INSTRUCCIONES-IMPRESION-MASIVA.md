@@ -33,3 +33,10 @@ El módulo no cambia folios, vigencias, estados ni registros de credenciales. So
 - Se ajustó el reverso para evitar que los términos y condiciones queden tapados.
 - El QR conserva la ruta de verificación existente (`buildVerificationUrl`) y la biblioteca QR ya utilizada por PAS ID; no se incorpora otro sistema.
 - Las fechas se leen de los campos `issued` y `expires` del registro. La impresión no modifica fechas ni vigencias.
+
+
+## Corrección de alineación y QR
+- Expedición y vigencia quedan centradas en el frente.
+- Los términos y condiciones se presentan justificados para mantener los bordes de texto parejos.
+- El QR se genera con `QRCode.toCanvas`, el mismo generador y la misma URL de verificación que usa PAS ID en sus credenciales y perfiles. Después se incorpora al PDF como imagen PNG para asegurar que aparezca al imprimir.
+- No se agrega ninguna ruta, tabla, función SQL ni sistema QR nuevo.
