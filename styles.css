@@ -307,3 +307,12 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 .member-notification-panel{position:absolute;z-index:90;right:22px;top:78px;width:min(420px,calc(100vw - 28px));max-height:72vh;overflow:auto;background:#fff;border:1px solid #dfe6ee;border-radius:16px;box-shadow:0 18px 48px rgba(16,38,66,.18);padding:16px}
 .member-notification-trigger{min-width:40px}
 @media(max-width:650px){.member-notification-panel{right:10px;top:70px}}
+
+/* Selector visual de ubicación de consultorio */
+.office-map-tools{display:grid;grid-template-columns:minmax(180px,1fr) auto auto;gap:8px;margin:8px 0 10px}
+.office-map-tools input{min-width:0;width:100%;border:1px solid #dbe2ea;border-radius:10px;padding:12px 14px;background:#fff;color:#173655;font:inherit}
+.office-location-map{height:320px;width:100%;border:1px solid #dbe2ea;border-radius:14px;overflow:hidden;background:#eaf0f5;z-index:1}
+.office-map-caption{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px;color:#71839a;font-size:12px}
+.text-button{border:0;background:transparent;color:#1c527e;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.office-location-map .leaflet-control-attribution{font-size:9px}
+@media(max-width:700px){.office-map-tools{grid-template-columns:1fr 1fr}.office-map-tools input{grid-column:1/-1}.office-location-map{height:270px}.office-map-caption{align-items:flex-start;flex-direction:column}}

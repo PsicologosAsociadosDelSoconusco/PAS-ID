@@ -592,6 +592,79 @@ async function loadMemberEvents() {
   }
 }
 
+
+let officeLocationMap = null;
+let officeLocationMarker = null;
+
+function setOfficeMapStatus(message) {
+  const status=document.getElementById('officeMapStatus');
+  if(status) status.textContent=message;
+}
+function setOfficeCoordinates(lat,lng,zoom=true) {
+  const latInput=document.getElementById('profileOfficeLatitude');
+  const lngInput=document.getElementById('profileOfficeLongitude');
+  if(!latInput||!lngInput)return;
+  latInput.value=Number(lat).toFixed(6);
+  lngInput.value=Number(lng).toFixed(6);
+  const point=[Number(lat),Number(lng)];
+  if(officeLocationMap && window.L){
+    if(!officeLocationMarker){
+      officeLocationMarker=L.marker(point,{draggable:true}).addTo(officeLocationMap);
+      officeLocationMarker.on('dragend',()=>{const p=officeLocationMarker.getLatLng();setOfficeCoordinates(p.lat,p.lng,false);});
+    }else officeLocationMarker.setLatLng(point);
+    if(zoom) officeLocationMap.setView(point,16);
+  }
+  setOfficeMapStatus(`Ubicación seleccionada: ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}. Puedes arrastrar el marcador para ajustarla.`);
+}
+function clearOfficeCoordinates(){
+  document.getElementById('profileOfficeLatitude').value='';
+  document.getElementById('profileOfficeLongitude').value='';
+  if(officeLocationMarker && officeLocationMap){officeLocationMap.removeLayer(officeLocationMarker);officeLocationMarker=null;}
+  setOfficeMapStatus('No has seleccionado una ubicación. Puedes elegirla directamente en el mapa.');
+}
+function initializeOfficeLocationMap(){
+  const el=document.getElementById('officeLocationMap');
+  if(!el || !window.L)return;
+  if(!officeLocationMap){
+    officeLocationMap=L.map(el,{scrollWheelZoom:false}).setView([14.90,-92.26],12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19, attribution:'&copy; OpenStreetMap'
+    }).addTo(officeLocationMap);
+    officeLocationMap.on('click',event=>setOfficeCoordinates(event.latlng.lat,event.latlng.lng));
+  }
+  setTimeout(()=>officeLocationMap.invalidateSize(),120);
+  const lat=document.getElementById('profileOfficeLatitude').value;
+  const lng=document.getElementById('profileOfficeLongitude').value;
+  if(lat && lng) setOfficeCoordinates(Number(lat),Number(lng));
+  else if(officeLocationMarker){officeLocationMap.removeLayer(officeLocationMarker);officeLocationMarker=null;}
+}
+async function searchOfficeLocation(){
+  const query=document.getElementById('officeMapSearch').value.trim();
+  if(!query){setOfficeMapStatus('Escribe una dirección o lugar para buscar.');return;}
+  const button=document.getElementById('officeMapSearchButton');
+  button.disabled=true;setOfficeMapStatus('Buscando ubicación…');
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query+', Chiapas, México')}`;
+    const response=await fetch(url,{headers:{'Accept':'application/json'}});
+    if(!response.ok) throw new Error('El servicio de búsqueda no respondió.');
+    const results=await response.json();
+    if(!results.length){setOfficeMapStatus('No encontramos ese lugar. Puedes localizarlo manualmente en el mapa.');return;}
+    setOfficeCoordinates(Number(results[0].lat),Number(results[0].lon));
+    setOfficeMapStatus(`Resultado: ${results[0].display_name}. Ajusta el marcador si es necesario.`);
+  }catch(error){setOfficeMapStatus('No se pudo buscar la dirección. Selecciona el punto directamente en el mapa.');}
+  finally{button.disabled=false;}
+}
+document.getElementById('officeMapSearchButton')?.addEventListener('click',searchOfficeLocation);
+document.getElementById('officeMapSearch')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();searchOfficeLocation();}});
+document.getElementById('officeMapClearButton')?.addEventListener('click',clearOfficeCoordinates);
+document.getElementById('officeMapLocateButton')?.addEventListener('click',()=>{
+  if(!navigator.geolocation){setOfficeMapStatus('Este navegador no permite obtener tu ubicación.');return;}
+  setOfficeMapStatus('Solicitando permiso de ubicación…');
+  navigator.geolocation.getCurrentPosition(position=>setOfficeCoordinates(position.coords.latitude,position.coords.longitude),
+    ()=>setOfficeMapStatus('No se pudo obtener tu ubicación. Puedes seleccionar el punto manualmente.'),
+    {enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+});
+
 function showMemberPortal(profile) {
   currentMemberProfile = profile;
   const member = profile.member || {};
@@ -658,6 +731,7 @@ function showMemberPortal(profile) {
     profileAbout: detail.about || ''
   };
   Object.entries(fields).forEach(([id,value]) => { const el=document.getElementById(id); if (!el) return; if (el.type==='checkbox') el.checked=Boolean(value); else el.value=value; });
+  initializeOfficeLocationMap();
   loadMyInstitutionalRequests();
   loadMemberEvents();
   loadMyCertificates();

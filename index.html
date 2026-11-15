@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -108,8 +109,18 @@
           <div class="form-field"><label for="profileCity">MUNICIPIO</label><input id="profileCity" maxlength="100"></div>
           <div class="form-field"><label for="profileState">ESTADO</label><input id="profileState" maxlength="100"></div>
           <div class="form-field full"><label for="profileOfficeAddress">DIRECCIÓN DEL CONSULTORIO (OPCIONAL)</label><input id="profileOfficeAddress" maxlength="300" placeholder="Calle, número, colonia o referencia"></div>
-          <div class="form-field"><label for="profileOfficeLatitude">LATITUD DEL MAPA (OPCIONAL)</label><input id="profileOfficeLatitude" type="number" step="any" min="-90" max="90" placeholder="Ej. 14.90"></div>
-          <div class="form-field"><label for="profileOfficeLongitude">LONGITUD DEL MAPA (OPCIONAL)</label><input id="profileOfficeLongitude" type="number" step="any" min="-180" max="180" placeholder="-92.26"></div>
+          <div class="form-field full">
+            <label>UBICACIÓN DEL CONSULTORIO</label>
+            <div class="office-map-tools">
+              <input id="officeMapSearch" type="search" placeholder="Busca una dirección, colonia o establecimiento">
+              <button type="button" class="btn btn-outline" id="officeMapSearchButton">Buscar</button>
+              <button type="button" class="btn btn-ghost" id="officeMapLocateButton">Usar mi ubicación</button>
+            </div>
+            <div id="officeLocationMap" class="office-location-map" role="application" aria-label="Mapa para seleccionar la ubicación del consultorio"></div>
+            <div class="office-map-caption"><span id="officeMapStatus">Haz clic en el mapa o arrastra el marcador hasta tu consultorio.</span><button type="button" id="officeMapClearButton" class="text-button">Quitar ubicación</button></div>
+            <input id="profileOfficeLatitude" type="hidden">
+            <input id="profileOfficeLongitude" type="hidden">
+          </div>
           <div class="form-field"><label for="profileModality">MODALIDAD DE ATENCIÓN</label><select id="profileModality"><option value="">Selecciona</option><option value="Presencial">Presencial</option><option value="En línea">En línea</option><option value="Presencial y en línea">Presencial y en línea</option></select></div>
           <div class="form-field full"><label class="profile-photo-consent"><input id="profileDirectoryConsent" type="checkbox"> Solicito aparecer en el directorio profesional público de PAS. Autorizo mostrar los datos profesionales y la ubicación que he capturado.</label><small class="field-help">La publicación requiere aprobación de Directiva. Puedes solicitar retirarte del directorio desmarcando esta opción.</small></div>
           <div class="form-field full"><label for="profileAbout">PRESENTACIÓN PROFESIONAL (OPCIONAL)</label><textarea id="profileAbout" rows="5" maxlength="1200"></textarea></div>
@@ -293,6 +304,7 @@
           try { await loadScript('https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js'); }
           catch (error) { console.warn('La biblioteca QR no está disponible; se podrá usar el mecanismo alternativo.', error); }
         }
+        await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
         await loadScript('config.js');
         await loadScript('pas-id-backend.js');
         await loadScript('app.js');
