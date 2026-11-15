@@ -73,6 +73,33 @@
       return rows.map(mapMember);
     },
 
+    async listPublicDirectory(filters = {}) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('list_pas_public_directory', {
+        p_search: filters.search || null,
+        p_city: filters.city || null,
+        p_specialty: filters.specialty || null
+      }), 'directorio profesional público');
+    },
+
+    async listNotifications() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('list_my_pas_notifications'), 'notificaciones');
+    },
+
+    async markNotificationRead(notificationId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('mark_pas_notification_read', { p_notification_id: notificationId }), 'notificación');
+    },
+
+    async publishNotification(payload) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('publish_pas_notification', {
+        p_title: payload.title, p_body: payload.body,
+        p_audience: payload.audience, p_member_type: payload.memberType || null
+      }), 'publicación de notificación');
+    },
+
     async getMyProfile() {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.rpc('get_my_pas_profile'), 'expediente del afiliado');

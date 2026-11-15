@@ -69,8 +69,9 @@
   <section id="memberPortalScreen" class="member-portal hidden" aria-labelledby="memberPortalTitle">
     <header class="member-portal-header">
       <a class="brand-lockup" href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>PORTAL DEL AFILIADO</small></div></a>
-      <div class="member-portal-account"><span id="memberPortalAccountEmail"></span><button type="button" class="btn btn-ghost" id="memberSignOutButton">Salir</button></div>
+      <div class="member-portal-account"><span id="memberPortalAccountEmail"></span><button type="button" class="icon-button member-notification-trigger" id="memberNotificationBell" aria-label="Notificaciones">♧<i id="memberNotificationUnreadDot"></i></button><button type="button" class="btn btn-ghost" id="memberSignOutButton">Salir</button></div>
     </header>
+    <section id="memberNotificationPanel" class="member-notification-panel hidden"><div class="notification-panel-head"><b>Notificaciones</b><button type="button" id="closeMemberNotificationPanel">×</button></div><div id="memberNotificationList" class="notification-list"><p class="muted">Cargando…</p></div></section>
     <main class="member-portal-main">
       <div class="member-portal-welcome"><div><span class="eyebrow">ESPACIO PERSONAL · PAS</span><h1 id="memberPortalTitle">Mi expediente <em>institucional.</em></h1><p>Consulta tu información, tu credencial digital y el estado de tu membresía.</p></div><span class="member-portal-type" id="memberPortalType">Afiliado</span></div>
       <section class="member-portal-grid">
@@ -106,6 +107,11 @@
           <div class="form-field"><label for="profileSpecialty">ÁREA / ESPECIALIDAD</label><input id="profileSpecialty" maxlength="160"></div>
           <div class="form-field"><label for="profileCity">MUNICIPIO</label><input id="profileCity" maxlength="100"></div>
           <div class="form-field"><label for="profileState">ESTADO</label><input id="profileState" maxlength="100"></div>
+          <div class="form-field full"><label for="profileOfficeAddress">DIRECCIÓN DEL CONSULTORIO (OPCIONAL)</label><input id="profileOfficeAddress" maxlength="300" placeholder="Calle, número, colonia o referencia"></div>
+          <div class="form-field"><label for="profileOfficeLatitude">LATITUD DEL MAPA (OPCIONAL)</label><input id="profileOfficeLatitude" type="number" step="any" min="-90" max="90" placeholder="Ej. 14.90"></div>
+          <div class="form-field"><label for="profileOfficeLongitude">LONGITUD DEL MAPA (OPCIONAL)</label><input id="profileOfficeLongitude" type="number" step="any" min="-180" max="180" placeholder="-92.26"></div>
+          <div class="form-field"><label for="profileModality">MODALIDAD DE ATENCIÓN</label><select id="profileModality"><option value="">Selecciona</option><option value="Presencial">Presencial</option><option value="En línea">En línea</option><option value="Presencial y en línea">Presencial y en línea</option></select></div>
+          <div class="form-field full"><label class="profile-photo-consent"><input id="profileDirectoryConsent" type="checkbox"> Solicito aparecer en el directorio profesional público de PAS. Autorizo mostrar los datos profesionales y la ubicación que he capturado.</label><small class="field-help">La publicación requiere aprobación de Directiva. Puedes solicitar retirarte del directorio desmarcando esta opción.</small></div>
           <div class="form-field full"><label for="profileAbout">PRESENTACIÓN PROFESIONAL (OPCIONAL)</label><textarea id="profileAbout" rows="5" maxlength="1200"></textarea></div>
           <div class="member-profile-submit"><small>Tu fotografía y los datos profesionales autorizados aparecerán en la consulta pública después de la aprobación de Directiva. Los datos de contacto permanecen privados.</small><button type="submit" class="btn btn-primary" id="submitProfileChanges">Enviar actualización a Directiva →</button></div>
         </form>
@@ -116,11 +122,16 @@
   </section>
 
   <section id="publicScreen" class="public-screen hidden">
-    <header class="public-header"><a class="brand-lockup" href="#"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>VERIFICACIÓN INSTITUCIONAL</small></div></a><button id="backToLogin" class="btn btn-ghost">← Inicio</button></header>
+    <header class="public-header"><a class="brand-lockup" href="#"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>VERIFICACIÓN INSTITUCIONAL</small></div></a><div class="public-header-actions"><button id="openPublicDirectory" class="btn btn-outline" type="button">Directorio profesional</button><button id="backToLogin" class="btn btn-ghost">← Inicio</button></div></header>
     <main class="verify-main"><div class="verify-kicker"><span class="status-dot"></span> CONSULTA PÚBLICA</div><h1>Verifica una<br><em>credencial PAS.</em></h1><p class="muted">Introduce el folio histórico o identificador aleatorio para consultar el estado vigente en la base de datos institucional.</p>
       <form id="publicVerifyForm" class="verify-search"><label for="publicVerifyInput">FOLIO O IDENTIFICADOR</label><div class="search-combo"><input id="publicVerifyInput" placeholder="Ej. 0000001" autocomplete="off"><button class="btn btn-primary" type="submit">Verificar <span>→</span></button></div></form>
       <div id="publicVerifyResult" class="verify-result empty-result"><div class="verify-empty-icon">⌕</div><strong>Consulta de credencial</strong><span>El resultado aparecerá aquí.</span></div>
       <div class="verify-legal"><span>ⓘ</span><p>Esta consulta muestra únicamente información institucional autorizada. No sustituye una identificación oficial ni acredita por sí misma el ejercicio profesional.</p></div>
+      <section id="publicDirectoryPanel" class="public-directory-panel hidden">
+        <div class="page-heading"><div><span class="eyebrow">COMUNIDAD PROFESIONAL PAS</span><h2>Directorio <em>profesional.</em></h2><p>Profesionales que autorizaron la publicación de su perfil.</p></div></div>
+        <div class="directory-filters"><input id="publicDirectorySearch" type="search" placeholder="Buscar por nombre o especialidad"><input id="publicDirectoryCity" type="search" placeholder="Municipio"></div>
+        <div id="publicDirectoryResults" class="public-directory-grid"><p class="muted">Cargando profesionales…</p></div>
+      </section>
     </main>
     <footer class="public-footer"><span>PAS ID · Psicólogos Asociados del Soconusco</span><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">Sitio institucional ↗</a></footer>
   </section>
@@ -144,7 +155,18 @@
     </aside>
     <div class="sidebar-scrim" id="sidebarScrim"></div>
     <main class="main-area">
-      <header class="topbar"><button class="mobile-menu" id="openSidebar" aria-label="Abrir menú">☰</button><div class="breadcrumb"><span>Plataforma</span><b>/</b><strong id="breadcrumbCurrent">Resumen</strong></div><div class="topbar-actions"><span class="top-date" id="todayLabel"></span><button class="icon-button" title="Centro de notificaciones" aria-label="Notificaciones">♧<i></i></button><div class="user-chip"><div class="user-avatar">DP</div><div><strong id="activeUserName">Directiva PAS</strong><small id="activeUserRole">Administración institucional</small></div><span class="chevron">⌄</span></div><button class="btn btn-ghost hidden" id="signOutButton" type="button">Salir</button></div></header>
+      <header class="topbar"><button class="mobile-menu" id="openSidebar" aria-label="Abrir menú">☰</button><div class="breadcrumb"><span>Plataforma</span><b>/</b><strong id="breadcrumbCurrent">Resumen</strong></div><div class="topbar-actions"><span class="top-date" id="todayLabel"></span><button class="icon-button" id="notificationBell" title="Centro de notificaciones" aria-label="Notificaciones">♧<i id="notificationUnreadDot"></i></button><div class="user-chip"><div class="user-avatar">DP</div><div><strong id="activeUserName">Directiva PAS</strong><small id="activeUserRole">Administración institucional</small></div><span class="chevron">⌄</span></div><button class="btn btn-ghost hidden" id="signOutButton" type="button">Salir</button></div></header>
+      <section id="notificationPanel" class="notification-panel hidden">
+        <div class="notification-panel-head"><div><b>Notificaciones</b><small id="notificationCount">Avisos recientes</small></div><button type="button" id="closeNotificationPanel" aria-label="Cerrar">×</button></div>
+        <div id="notificationList" class="notification-list"><p class="muted">Cargando notificaciones…</p></div>
+        <form id="publishNotificationForm" class="publish-notification-form hidden">
+          <b>Publicar aviso institucional</b>
+          <input id="notificationTitle" maxlength="140" required placeholder="Título del aviso">
+          <textarea id="notificationBody" maxlength="2000" rows="3" required placeholder="Escribe el comunicado…"></textarea>
+          <div class="notification-publish-row"><select id="notificationAudience"><option value="all">Todos los integrantes</option><option value="role">Por categoría</option></select><select id="notificationRole" class="hidden"><option value="afiliado">Afiliados</option><option value="colaborador">Colaboradores</option><option value="fundador">Fundadores</option></select></div>
+          <button class="btn btn-primary" type="submit">Publicar notificación</button>
+        </form>
+      </section>
       <div class="content-area">
         <section class="view active" id="view-overview">
           <div class="page-heading"><div><div class="eyebrow">CENTRO DE CONTROL <span class="gold-dash"></span></div><h1>Bienvenido a <em>PAS ID.</em></h1><p>Un espacio para gestionar la identidad, participación y comunidad de PAS.</p></div><button class="btn btn-primary" data-action="new-member"><span>＋</span> Registrar miembro</button></div>

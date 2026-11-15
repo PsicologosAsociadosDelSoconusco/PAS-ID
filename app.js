@@ -350,7 +350,7 @@ function renderAll() {
   updateStats(); renderRecent(); renderMembers(); renderCredentials();
 }
 function profileChangeLabel(key) {
-  return ({contact_email:'Correo de contacto',phone:'Teléfono',professional_license:'Cédula profesional',specialty:'Área / especialidad',city:'Municipio',state:'Estado',about:'Presentación profesional',photo_path:'Fotografía profesional (pendiente de revisión)'})[key] || key;
+  return ({contact_email:'Correo de contacto',phone:'Teléfono',professional_license:'Cédula profesional',specialty:'Área / especialidad',city:'Municipio',state:'Estado',office_address:'Dirección del consultorio',office_latitude:'Latitud del consultorio',office_longitude:'Longitud del consultorio',service_modality:'Modalidad de atención',public_directory_enabled:'Solicitud para aparecer en el directorio público',about:'Presentación profesional',photo_path:'Fotografía profesional (pendiente de revisión)'})[key] || key;
 }
 async function loadProfileRequests() {
   const target = document.getElementById('profileRequestsList');
@@ -650,9 +650,14 @@ function showMemberPortal(profile) {
     profileSpecialty: detail.specialty || '',
     profileCity: detail.city || '',
     profileState: detail.state || '',
+    profileOfficeAddress: detail.office_address || '',
+    profileOfficeLatitude: detail.office_latitude ?? '',
+    profileOfficeLongitude: detail.office_longitude ?? '',
+    profileModality: detail.service_modality || '',
+    profileDirectoryConsent: detail.public_directory_enabled === true,
     profileAbout: detail.about || ''
   };
-  Object.entries(fields).forEach(([id,value]) => { document.getElementById(id).value = value; });
+  Object.entries(fields).forEach(([id,value]) => { const el=document.getElementById(id); if (!el) return; if (el.type==='checkbox') el.checked=Boolean(value); else el.value=value; });
   loadMyInstitutionalRequests();
   loadMemberEvents();
   loadMyCertificates();
@@ -664,11 +669,13 @@ async function activateAuthenticatedRole(role, session) {
     members = await pasBackend.listMembers();
     document.getElementById('activeUserName').textContent = signedInEmail || 'Directiva PAS';
     document.getElementById('activeUserRole').textContent = 'Directiva · Conectado';
+    document.getElementById('publishNotificationForm')?.classList.remove('hidden');
     document.getElementById('signOutButton').classList.remove('hidden');
     showApp();
     return;
   }
   if (role === 'afiliado' || role === 'colaborador') {
+    document.getElementById('publishNotificationForm')?.classList.add('hidden');
     const profile = await pasBackend.getMyProfile();
     showMemberPortal(profile);
     return;
@@ -676,6 +683,49 @@ async function activateAuthenticatedRole(role, session) {
   await pasBackend.signOut();
   signedInRole = '';
   showLoginWithNotice('Tu cuenta todavía no tiene un rol institucional válido. Solicita apoyo a la Directiva PAS.');
+}
+
+
+
+async function loadMemberNotificationPanel() {
+  const target=document.getElementById('memberNotificationList'); if(!target)return;
+  target.innerHTML='<p class="muted">Cargando notificaciones…</p>';
+  try {
+    const rows=await pasBackend.listNotifications();
+    const unread=rows.filter(n=>!n.read_at).length;
+    document.getElementById('memberNotificationUnreadDot').classList.toggle('has-unread',unread>0);
+    target.innerHTML=rows.length?rows.map(n=>`<article class="notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p>${!n.read_at?`<button type="button" data-member-read-notification="${n.id}">Marcar como leída</button>`:''}</article>`).join(''):'<p class="muted">No tienes notificaciones por ahora.</p>';
+  } catch(error){target.innerHTML=`<p class="muted">${escapeHtml(error.message||'No fue posible cargar avisos.')}</p>`;}
+}
+
+async function loadPublicDirectory() {
+  const target=document.getElementById('publicDirectoryResults');
+  if(!target) return;
+  target.innerHTML='<p class="muted">Consultando directorio PAS…</p>';
+  try {
+    const rows=await pasBackend.listPublicDirectory({
+      search:document.getElementById('publicDirectorySearch')?.value.trim()||'',
+      city:document.getElementById('publicDirectoryCity')?.value.trim()||''
+    });
+    if(!rows.length){target.innerHTML='<p class="muted">No hay perfiles públicos que coincidan con la búsqueda.</p>';return;}
+    target.innerHTML=rows.map(p=>{
+      const photo=p.photo_path?pasBackend.publicProfilePhotoUrl(p.photo_path):'';
+      const map=(p.office_latitude!=null&&p.office_longitude!=null)?`https://www.google.com/maps?q=${encodeURIComponent(p.office_latitude+','+p.office_longitude)}`:'';
+      return `<article class="public-professional-card">${photo?`<img src="${escapeHtml(photo)}" alt="" loading="lazy">`:`<div class="public-professional-avatar">${escapeHtml(initials(p.full_name))}</div>`}<div class="public-professional-content"><span class="eyebrow">${escapeHtml(p.member_type||'Integrante PAS')}</span><h3>${escapeHtml(p.full_name)}</h3>${p.specialty?`<b>${escapeHtml(p.specialty)}</b>`:''}<p>${escapeHtml([p.city,p.state].filter(Boolean).join(', '))}</p>${p.about?`<p>${escapeHtml(p.about)}</p>`:''}${p.service_modality?`<small>Atención: ${escapeHtml(p.service_modality)}</small>`:''}${map?`<a href="${map}" target="_blank" rel="noopener">Ver ubicación ↗</a>`:''}</div></article>`;
+    }).join('');
+  } catch(error){target.innerHTML=`<p class="muted">No se pudo cargar el directorio. ${escapeHtml(error.message||'')}</p>`;}
+}
+async function loadNotificationPanel() {
+  const target=document.getElementById('notificationList');
+  if(!target) return;
+  target.innerHTML='<p class="muted">Cargando notificaciones…</p>';
+  try {
+    const rows=await pasBackend.listNotifications();
+    const unread=rows.filter(n=>!n.read_at).length;
+    document.getElementById('notificationUnreadDot').classList.toggle('has-unread',unread>0);
+    document.getElementById('notificationCount').textContent=`${unread} sin leer · ${rows.length} recientes`;
+    target.innerHTML=rows.length?rows.map(n=>`<article class="notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p>${!n.read_at?`<button type="button" data-read-notification="${n.id}">Marcar como leída</button>`:''}</article>`).join(''):'<p class="muted">No tienes notificaciones por ahora.</p>';
+  } catch(error){target.innerHTML=`<p class="muted">No fue posible cargar avisos: ${escapeHtml(error.message||'')}</p>`;}
 }
 
 function openPublicScreen() {
@@ -810,9 +860,14 @@ document.getElementById('profileChangeForm').addEventListener('submit', async ev
     specialty: document.getElementById('profileSpecialty').value.trim(),
     city: document.getElementById('profileCity').value.trim(),
     state: document.getElementById('profileState').value.trim(),
+    office_address: document.getElementById('profileOfficeAddress').value.trim(),
+    office_latitude: document.getElementById('profileOfficeLatitude').value.trim(),
+    office_longitude: document.getElementById('profileOfficeLongitude').value.trim(),
+    service_modality: document.getElementById('profileModality').value,
+    public_directory_enabled: document.getElementById('profileDirectoryConsent').checked,
     about: document.getElementById('profileAbout').value.trim()
   };
-  const changes = Object.fromEntries(Object.entries(values).filter(([key,value]) => String(value) !== String(existing[key] || '')));
+  const changes = Object.fromEntries(Object.entries(values).filter(([key,value]) => String(value) !== String(existing[key] ?? (typeof value==='boolean' ? false : ''))));
   const photoFile = document.getElementById('profilePhotoFile')?.files?.[0] || null;
   const photoConsent = Boolean(document.getElementById('profilePhotoConsent')?.checked);
   if (photoFile && !photoConsent) { showToast('Debes autorizar expresamente la publicación de tu fotografía.'); return; }
@@ -857,6 +912,17 @@ document.getElementById('institutionalRequestsAdminList').addEventListener('clic
   try { await pasBackend.reviewInstitutionalRequest(id, status, response); await loadInstitutionalRequestsAdmin(); showToast('La solicitud fue actualizada.'); }
   catch (error) { showToast(error.message || 'No se pudo actualizar la solicitud.'); button.disabled = false; }
 });
+
+document.getElementById('memberNotificationBell')?.addEventListener('click',()=>{
+  document.getElementById('memberNotificationPanel').classList.toggle('hidden');
+  loadMemberNotificationPanel();
+});
+document.getElementById('closeMemberNotificationPanel')?.addEventListener('click',()=>document.getElementById('memberNotificationPanel').classList.add('hidden'));
+document.getElementById('memberNotificationList')?.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-member-read-notification]');if(!b)return;
+  b.disabled=true;try{await pasBackend.markNotificationRead(b.dataset.memberReadNotification);await loadMemberNotificationPanel();}
+  catch(error){showToast(error.message||'No se pudo actualizar.');b.disabled=false;}
+});
 document.getElementById('memberSignOutButton').addEventListener('click', async () => {
   try { if (connectedMode) await pasBackend.signOut(); } catch (error) { console.warn(error); }
   signedInRole = ''; signedInEmail = ''; currentMemberProfile = null;
@@ -871,6 +937,33 @@ document.getElementById('copyMemberCredential').addEventListener('click', async 
   catch (_) { showToast('No se pudo copiar. Selecciona el identificador manualmente.'); }
 });
 
+
+document.getElementById('openPublicDirectory')?.addEventListener('click',()=>{
+  document.getElementById('publicDirectoryPanel').classList.remove('hidden');
+  loadPublicDirectory();
+});
+document.getElementById('publicDirectorySearch')?.addEventListener('input',loadPublicDirectory);
+document.getElementById('publicDirectoryCity')?.addEventListener('input',loadPublicDirectory);
+document.getElementById('notificationBell')?.addEventListener('click',()=>{
+  document.getElementById('notificationPanel').classList.toggle('hidden');
+  loadNotificationPanel();
+});
+document.getElementById('closeNotificationPanel')?.addEventListener('click',()=>document.getElementById('notificationPanel').classList.add('hidden'));
+document.getElementById('notificationAudience')?.addEventListener('change',e=>document.getElementById('notificationRole').classList.toggle('hidden',e.target.value!=='role'));
+document.getElementById('notificationList')?.addEventListener('click',async e=>{
+  const button=e.target.closest('[data-read-notification]'); if(!button)return;
+  button.disabled=true;
+  try{await pasBackend.markNotificationRead(button.dataset.readNotification);await loadNotificationPanel();}
+  catch(error){showToast(error.message||'No se pudo actualizar la notificación.');button.disabled=false;}
+});
+document.getElementById('publishNotificationForm')?.addEventListener('submit',async e=>{
+  e.preventDefault();const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+  try{
+    await pasBackend.publishNotification({title:document.getElementById('notificationTitle').value.trim(),body:document.getElementById('notificationBody').value.trim(),audience:document.getElementById('notificationAudience').value,memberType:document.getElementById('notificationRole').value});
+    e.currentTarget.reset();document.getElementById('notificationRole').classList.add('hidden');await loadNotificationPanel();showToast('Aviso publicado para los destinatarios seleccionados.');
+  }catch(error){showToast(error.message||'No se pudo publicar el aviso.');}
+  finally{button.disabled=false;}
+});
 document.getElementById('publicVerifyForm').addEventListener('submit', event => {
   event.preventDefault();
   const value = document.getElementById('publicVerifyInput').value;
