@@ -792,6 +792,17 @@ function formatMemberDocumentDueDate(value) {
   if (!value) return 'Sin fecha límite';
   return new Date(`${value}T00:00:00`).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
 }
+function formatMemberDocumentTimestamp(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+}
+function memberDocumentStatusMessage(doc) {
+  if (doc.status === 'submitted') return `<div class="member-document-feedback is-submitted"><b>✓ Documento recibido por PAS</b><span>Tu archivo fue enviado el ${escapeHtml(formatMemberDocumentTimestamp(doc.submitted_at) || 'fecha no disponible')} y está pendiente de revisión por Directiva.</span></div>`;
+  if (doc.status === 'approved') return `<div class="member-document-feedback is-approved"><b>✓ Documento aprobado</b><span>Directiva aprobó este archivo${doc.reviewed_at ? ` el ${escapeHtml(formatMemberDocumentTimestamp(doc.reviewed_at))}` : ''}.</span></div>`;
+  if (doc.status === 'changes_requested') return `<div class="member-document-feedback is-correction"><b>Se necesita una corrección</b><span>Revisa las observaciones de Directiva y carga una nueva versión del archivo.</span></div>`;
+  return `<div class="member-document-feedback is-pending"><b>Pendiente de entrega</b><span>Selecciona el archivo solicitado y pulsa «Enviar documento» para completar la entrega.</span></div>`;
+}
 async function loadMyMemberDocuments() {
   const target=document.getElementById('memberDocumentsList');
   if(!target || !connectedMode) return;
@@ -799,12 +810,18 @@ async function loadMyMemberDocuments() {
   try {
     myMemberDocumentRequests=await pasBackend.listMyMemberDocumentRequests();
     if(!myMemberDocumentRequests.length) {
-      target.innerHTML='<div class="member-documents-empty"><span>▤</span><b>No tienes documentos pendientes.</b><p>Cuando la asociación te solicite algún documento, aparecerá aquí con sus instrucciones y fecha límite.</p></div>';
+      target.innerHTML='<div class="member-documents-empty"><span>▤</span><b>No tienes requerimientos documentales.</b><p>Cuando la asociación te solicite algún documento, recibirás una notificación y aparecerá aquí con sus instrucciones y fecha límite.</p></div>';
       return;
     }
-    target.innerHTML=myMemberDocumentRequests.map(doc=>`<article class="member-document-row"><div class="member-document-main"><div class="member-document-title-line"><b>${escapeHtml(doc.title)}</b><span class="document-status ${memberDocumentStatusClass(doc.status)}">${memberDocumentStatusLabel(doc.status)}</span></div>${doc.instructions?`<p>${escapeHtml(doc.instructions)}</p>`:''}<small>Solicitado: ${new Date(doc.requested_at).toLocaleDateString('es-MX')} · ${formatMemberDocumentDueDate(doc.due_date)}</small>${doc.review_notes?`<div class="document-review-note"><b>Observaciones de Directiva</b><span>${escapeHtml(doc.review_notes)}</span></div>`:''}${doc.original_filename?`<small class="document-file-name">Archivo: ${escapeHtml(doc.original_filename)}</small>`:''}</div><div class="member-document-actions">${doc.storage_path?`<button type="button" class="btn btn-outline" data-open-my-member-document="${doc.id}">Ver archivo</button>`:''}${['pending','changes_requested'].includes(doc.status)?`<label class="document-file-picker">${doc.status==='changes_requested'?'Reemplazar documento':'Seleccionar archivo'}<input type="file" data-member-document-file="${doc.id}" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"></label><button type="button" class="btn btn-primary" data-submit-my-member-document="${doc.id}">Enviar documento</button><small>PDF, JPG, PNG o WEBP · Máximo 10 MB</small>`:''}</div></article>`).join('');
+    target.innerHTML=myMemberDocumentRequests.map(doc=>{
+      const canUpload=['pending','changes_requested'].includes(doc.status);
+      const submittedDate=formatMemberDocumentTimestamp(doc.submitted_at);
+      const fileInfo=doc.original_filename?`<div class="member-document-file-info"><span class="member-document-file-icon">▤</span><div><b>${escapeHtml(doc.original_filename)}</b><small>${(Number(doc.file_size||0)/1024/1024).toFixed(2)} MB${submittedDate?` · Entregado: ${escapeHtml(submittedDate)}`:''}</small></div></div>`:'';
+      return `<article class="member-document-row" data-member-document-row="${doc.id}"><div class="member-document-main"><div class="member-document-title-line"><b>${escapeHtml(doc.title)}</b><span class="document-status ${memberDocumentStatusClass(doc.status)}">${memberDocumentStatusLabel(doc.status)}</span></div>${doc.instructions?`<p>${escapeHtml(doc.instructions)}</p>`:''}<small>Solicitado: ${new Date(doc.requested_at).toLocaleDateString('es-MX')} · ${formatMemberDocumentDueDate(doc.due_date)}</small>${memberDocumentStatusMessage(doc)}${doc.review_notes?`<div class="document-review-note"><b>Observaciones de Directiva</b><span>${escapeHtml(doc.review_notes)}</span></div>`:''}${fileInfo}</div><div class="member-document-actions">${doc.storage_path?`<button type="button" class="btn btn-outline" data-open-my-member-document="${doc.id}">Ver archivo ↗</button>`:''}${canUpload?`<label class="document-file-picker">${doc.status==='changes_requested'?'Reemplazar documento':'Seleccionar archivo'}<input type="file" data-member-document-file="${doc.id}" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"></label><small class="document-selected-file" data-selected-document-file="${doc.id}">Ningún archivo seleccionado</small><button type="button" class="btn btn-primary" data-submit-my-member-document="${doc.id}">Enviar documento</button><small>PDF, JPG, PNG o WEBP · Máximo 10 MB</small>`:''}</div></article>`;
+    }).join('');
   } catch(error) { target.innerHTML=`<p class="muted">No fue posible cargar tus documentos: ${escapeHtml(error.message||'')}</p>`; }
 }
+
 function populateDocumentRequestMemberOptions() {
   const select=document.getElementById('documentRequestMember');
   if(!select)return;
@@ -819,7 +836,7 @@ function renderAdminMemberDocumentRequests(rows) {
   if(!rows.length){target.innerHTML='<div class="member-documents-empty"><span>▤</span><b>Aún no hay requerimientos documentales.</b><p>Utiliza el formulario para solicitar un documento a uno o varios integrantes.</p></div>';return;}
   target.innerHTML=rows.map(doc=>{
     const m=Array.isArray(doc.members)?doc.members[0]:doc.members;
-    return `<article class="admin-member-document-row"><div class="admin-member-document-head"><div><b>${escapeHtml(doc.title)}</b><small>${escapeHtml(m?.full_name||'Integrante PAS')} · ${escapeHtml(m?.legacy_folio||m?.member_type||'')} · ${new Date(doc.requested_at).toLocaleDateString('es-MX')}</small></div><span class="document-status ${memberDocumentStatusClass(doc.status)}">${memberDocumentStatusLabel(doc.status)}</span></div>${doc.instructions?`<p>${escapeHtml(doc.instructions)}</p>`:''}<div class="admin-member-document-meta"><span>Fecha límite: ${formatMemberDocumentDueDate(doc.due_date)}</span>${doc.original_filename?`<span>Archivo: ${escapeHtml(doc.original_filename)} (${(Number(doc.file_size||0)/1024/1024).toFixed(2)} MB)</span>`:''}</div>${doc.review_notes?`<div class="document-review-note"><b>Observaciones registradas</b><span>${escapeHtml(doc.review_notes)}</span></div>`:''}<div class="admin-member-document-actions">${doc.storage_path?`<button class="btn btn-outline" type="button" data-open-admin-member-document="${doc.id}">Abrir entrega ↗</button>`:''}${doc.status==='submitted'?`<button class="btn btn-outline" type="button" data-review-member-document="${doc.id}" data-decision="changes_requested">Solicitar corrección</button><button class="btn btn-primary" type="button" data-review-member-document="${doc.id}" data-decision="approved">Aprobar documento</button>`:''}</div></article>`;
+    return `<article class="admin-member-document-row" data-admin-member-document-row="${doc.id}"><div class="admin-member-document-head"><div><b>${escapeHtml(doc.title)}</b><small>${escapeHtml(m?.full_name||'Integrante PAS')} · ${escapeHtml(m?.legacy_folio||m?.member_type||'')} · ${new Date(doc.requested_at).toLocaleDateString('es-MX')}</small></div><span class="document-status ${memberDocumentStatusClass(doc.status)}">${memberDocumentStatusLabel(doc.status)}</span></div>${doc.instructions?`<p>${escapeHtml(doc.instructions)}</p>`:''}<div class="admin-member-document-meta"><span>Fecha límite: ${formatMemberDocumentDueDate(doc.due_date)}</span>${doc.submitted_at?`<span>Entregado: ${escapeHtml(formatMemberDocumentTimestamp(doc.submitted_at))}</span>`:''}${doc.original_filename?`<span>Archivo: ${escapeHtml(doc.original_filename)} (${(Number(doc.file_size||0)/1024/1024).toFixed(2)} MB)</span>`:''}</div>${doc.review_notes?`<div class="document-review-note"><b>Observaciones registradas</b><span>${escapeHtml(doc.review_notes)}</span></div>`:''}<div class="admin-member-document-actions">${doc.storage_path?`<button class="btn btn-outline" type="button" data-open-admin-member-document="${doc.id}">Abrir entrega ↗</button>`:''}${doc.status==='submitted'?`<button class="btn btn-outline" type="button" data-review-member-document="${doc.id}" data-decision="changes_requested">Solicitar corrección</button><button class="btn btn-primary" type="button" data-review-member-document="${doc.id}" data-decision="approved">Aprobar documento</button>`:''}</div></article>`;
   }).join('');
 }
 async function loadAdminMemberDocuments() {
@@ -884,16 +901,16 @@ async function refreshMemberNotificationDot() {
   const dot = document.getElementById('memberNotificationUnreadDot');
   if (!dot) return;
   try {
-    const [rows, unreadMessages] = await Promise.all([pasBackend.listNotifications(),pasBackend.countUnreadRequestMessages().catch(() => 0)]);
-    dot.classList.toggle('has-unread', rows.some(item => !item.read_at) || Number(unreadMessages) > 0);
+    const [rows, unreadMessages, documentNotices] = await Promise.all([pasBackend.listNotifications(),pasBackend.countUnreadRequestMessages().catch(() => 0),pasBackend.listMemberDocumentNotifications().catch(() => [])]);
+    dot.classList.toggle('has-unread', rows.some(item => !item.read_at) || Number(unreadMessages) > 0 || documentNotices.some(item => !item.read_at));
   } catch (error) { dot.classList.remove('has-unread'); console.warn('No se pudo consultar el estado de notificaciones.', error); }
 }
 async function refreshAdminNotificationDot() {
   const dot = document.getElementById('notificationUnreadDot');
   if (!dot) return;
   try {
-    const [rows, unreadMessages, unassignedRequests] = await Promise.all([pasBackend.listNotifications(),pasBackend.countUnreadRequestMessages().catch(() => 0),pasBackend.countUnassignedInstitutionalRequests().catch(() => 0)]);
-    dot.classList.toggle('has-unread', rows.some(item => !item.read_at) || Number(unreadMessages) > 0 || Number(unassignedRequests) > 0);
+    const [rows, unreadMessages, unassignedRequests, documentNotices] = await Promise.all([pasBackend.listNotifications(),pasBackend.countUnreadRequestMessages().catch(() => 0),pasBackend.countUnassignedInstitutionalRequests().catch(() => 0),pasBackend.listMemberDocumentNotifications().catch(() => [])]);
+    dot.classList.toggle('has-unread', rows.some(item => !item.read_at) || Number(unreadMessages) > 0 || Number(unassignedRequests) > 0 || documentNotices.some(item => !item.read_at));
   } catch (error) { dot.classList.remove('has-unread'); console.warn('No se pudo consultar el estado de notificaciones.', error); }
 }
 
@@ -1022,12 +1039,13 @@ async function loadMemberNotificationPanel() {
   const target=document.getElementById('memberNotificationList'); if(!target)return;
   target.innerHTML='<p class="muted">Cargando notificaciones…</p>';
   try {
-    const [rows,requestPreviews]=await Promise.all([pasBackend.listNotifications(),pasBackend.listUnreadRequestPreviews().catch(()=>[])]);
+    const [rows,requestPreviews,documentNotices]=await Promise.all([pasBackend.listNotifications(),pasBackend.listUnreadRequestPreviews().catch(()=>[]),pasBackend.listMemberDocumentNotifications().catch(()=>[])]);
     const unread=rows.filter(n=>!n.read_at).length;
-    document.getElementById('memberNotificationUnreadDot').classList.toggle('has-unread',unread>0||requestPreviews.length>0);
+    document.getElementById('memberNotificationUnreadDot').classList.toggle('has-unread',unread>0||requestPreviews.length>0||documentNotices.some(n=>!n.read_at));
     const messages=requestPreviews.map(item=>`<article class="notification-item is-unread request-notification-item"><div><b>Nuevo mensaje · ${escapeHtml(item.request_number)}</b><small>${new Date(item.created_at).toLocaleString('es-MX')} · ${escapeHtml(item.sender_name)}</small></div><p><strong>${escapeHtml(item.subject)}</strong><br>${escapeHtml(item.body)}</p><button type="button" data-member-unread-request="${item.request_id}">Abrir conversación →</button></article>`).join('');
+    const documents=documentNotices.map(n=>`<article class="notification-item document-notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p><button type="button" data-member-document-notification="${n.id}" data-document-request="${n.request_id}">Ver en Mi expediente →</button>${!n.read_at?`<button type="button" data-member-document-notification-read="${n.id}">Marcar como leída</button>`:''}</article>`).join('');
     const notices=rows.map(n=>`<article class="notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p>${!n.read_at?`<button type="button" data-member-read-notification="${n.id}">Marcar como leída</button>`:''}</article>`).join('');
-    target.innerHTML=messages+notices||( '<p class="muted">No tienes notificaciones por ahora.</p>' );
+    target.innerHTML=documents+messages+notices||( '<p class="muted">No tienes notificaciones por ahora.</p>' );
   } catch(error){target.innerHTML=`<p class="muted">${escapeHtml(error.message||'No fue posible cargar avisos.')}</p>`;}
 }
 
@@ -1053,14 +1071,16 @@ async function loadNotificationPanel() {
   if(!target) return;
   target.innerHTML='<p class="muted">Cargando notificaciones…</p>';
   try {
-    const [rows,requestPreviews,unassignedRequests]=await Promise.all([pasBackend.listNotifications(),pasBackend.listUnreadRequestPreviews().catch(()=>[]),pasBackend.listUnassignedInstitutionalRequestPreviews().catch(()=>[])]);
+    const [rows,requestPreviews,unassignedRequests,documentNotices]=await Promise.all([pasBackend.listNotifications(),pasBackend.listUnreadRequestPreviews().catch(()=>[]),pasBackend.listUnassignedInstitutionalRequestPreviews().catch(()=>[]),pasBackend.listMemberDocumentNotifications().catch(()=>[])]);
     const unread=rows.filter(n=>!n.read_at).length;
-    document.getElementById('notificationUnreadDot').classList.toggle('has-unread',unread>0||requestPreviews.length>0||unassignedRequests.length>0);
-    document.getElementById('notificationCount').textContent=`${unread} avisos sin leer · ${requestPreviews.length} conversaciones nuevas · ${unassignedRequests.length} solicitudes por atender`;
+    const unreadDocuments=documentNotices.filter(n=>!n.read_at).length;
+    document.getElementById('notificationUnreadDot').classList.toggle('has-unread',unread>0||requestPreviews.length>0||unassignedRequests.length>0||unreadDocuments>0);
+    document.getElementById('notificationCount').textContent=`${unread} avisos sin leer · ${requestPreviews.length} conversaciones nuevas · ${unassignedRequests.length} solicitudes por atender · ${unreadDocuments} avisos documentales`;
     const incoming=unassignedRequests.map(item=>`<article class="notification-item is-unread request-notification-item"><div><b>Nueva solicitud disponible · ${escapeHtml(item.request_number)}</b><small>${new Date(item.submitted_at).toLocaleString('es-MX')} · ${escapeHtml(item.requester_name||'Integrante PAS')}</small></div><p><strong>${escapeHtml(item.subject)}</strong><br>${escapeHtml(item.category)} · ${escapeHtml(item.requester_role)}</p><button type="button" data-admin-new-request="${item.id}">Ver bandeja →</button></article>`).join('');
     const messages=requestPreviews.map(item=>`<article class="notification-item is-unread request-notification-item"><div><b>Nuevo mensaje · ${escapeHtml(item.request_number)}</b><small>${new Date(item.created_at).toLocaleString('es-MX')} · ${escapeHtml(item.sender_name)}</small></div><p><strong>${escapeHtml(item.subject)}</strong><br>${escapeHtml(item.body)}</p><button type="button" data-admin-unread-request="${item.request_id}">Abrir caso →</button></article>`).join('');
+    const documents=documentNotices.map(n=>`<article class="notification-item document-notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p><button type="button" data-admin-document-notification="${n.id}" data-document-request="${n.request_id}">Abrir Gestión de documentación →</button>${!n.read_at?`<button type="button" data-admin-document-notification-read="${n.id}">Marcar como leída</button>`:''}</article>`).join('');
     const notices=rows.map(n=>`<article class="notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p>${!n.read_at?`<button type="button" data-read-notification="${n.id}">Marcar como leída</button>`:''}</article>`).join('');
-    target.innerHTML=incoming+messages+notices||'<p class="muted">No tienes notificaciones por ahora.</p>';
+    target.innerHTML=documents+incoming+messages+notices||'<p class="muted">No tienes notificaciones por ahora.</p>';
   } catch(error){target.innerHTML=`<p class="muted">No fue posible cargar avisos: ${escapeHtml(error.message||'')}</p>`;}
 }
 
@@ -1237,6 +1257,12 @@ document.getElementById('profileChangeForm').addEventListener('submit', async ev
   }
 });
 document.getElementById('refreshMyMemberDocuments')?.addEventListener('click',loadMyMemberDocuments);
+document.getElementById('memberDocumentsList')?.addEventListener('change',event=>{
+  const input=event.target.closest('[data-member-document-file]');
+  if(!input)return;
+  const label=document.querySelector(`[data-selected-document-file="${CSS.escape(input.dataset.memberDocumentFile)}"]`);
+  if(label)label.textContent=input.files?.[0]?.name||'Ningún archivo seleccionado';
+});
 document.getElementById('memberDocumentsList')?.addEventListener('click',async event=>{
   const open=event.target.closest('[data-open-my-member-document]');
   const submit=event.target.closest('[data-submit-my-member-document]');
@@ -1247,7 +1273,12 @@ document.getElementById('memberDocumentsList')?.addEventListener('click',async e
     const file=input?.files?.[0];
     if(!file){showToast('Selecciona el archivo que deseas entregar.');return;}
     submit.disabled=true;submit.textContent='Subiendo documento…';
-    try{await pasBackend.uploadMyMemberDocument(requestId,file);await loadMyMemberDocuments();showToast('Documento enviado correctamente.');}
+    try{
+      await pasBackend.uploadMyMemberDocument(requestId,file);
+      await loadMyMemberDocuments();
+      await refreshMemberNotificationDot();
+      showToast('Documento recibido por PAS. Directiva ya puede revisarlo.');
+    }
     catch(error){showToast(error.message||'No se pudo enviar el documento.');submit.disabled=false;submit.textContent='Enviar documento';}
   }
 });
@@ -1389,6 +1420,24 @@ document.getElementById('memberNotificationBell')?.addEventListener('click',()=>
 });
 document.getElementById('closeMemberNotificationPanel')?.addEventListener('click',()=>document.getElementById('memberNotificationPanel').classList.add('hidden'));
 document.getElementById('memberNotificationList')?.addEventListener('click',async e=>{
+  const documentNotice=e.target.closest('[data-member-document-notification]');
+  const markDocumentNotice=e.target.closest('[data-member-document-notification-read]');
+  if(documentNotice){
+    try{await pasBackend.markMemberDocumentNotificationRead(documentNotice.dataset.memberDocumentNotification);}catch(error){console.warn('No se pudo marcar el aviso documental.',error);}
+    document.getElementById('memberNotificationPanel').classList.add('hidden');
+    showMemberView('expediente');
+    await loadMyMemberDocuments();
+    const row=document.querySelector(`[data-member-document-row="${CSS.escape(documentNotice.dataset.documentRequest)}"]`);
+    row?.scrollIntoView({behavior:'smooth',block:'center'});
+    await refreshMemberNotificationDot();
+    return;
+  }
+  if(markDocumentNotice){
+    markDocumentNotice.disabled=true;
+    try{await pasBackend.markMemberDocumentNotificationRead(markDocumentNotice.dataset.memberDocumentNotificationRead);await loadMemberNotificationPanel();await refreshMemberNotificationDot();}
+    catch(error){showToast(error.message||'No se pudo actualizar el aviso.');markDocumentNotice.disabled=false;}
+    return;
+  }
   const thread=e.target.closest('[data-member-unread-request]');
   if(thread){
     document.getElementById('memberNotificationPanel').classList.add('hidden');
@@ -1428,9 +1477,28 @@ document.getElementById('notificationBell')?.addEventListener('click',()=>{
   loadNotificationPanel();
 });
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(signedInRole==='directiva')refreshAdminNotificationDot();else if(signedInRole==='afiliado'||signedInRole==='colaborador')refreshMemberNotificationDot();}});
+window.setInterval(()=>{if(document.visibilityState!=='visible')return;if(signedInRole==='directiva')refreshAdminNotificationDot();else if(signedInRole==='afiliado'||signedInRole==='colaborador')refreshMemberNotificationDot();},45000);
 document.getElementById('closeNotificationPanel')?.addEventListener('click',()=>document.getElementById('notificationPanel').classList.add('hidden'));
 document.getElementById('notificationAudience')?.addEventListener('change',e=>document.getElementById('notificationRole').classList.toggle('hidden',e.target.value!=='role'));
 document.getElementById('notificationList')?.addEventListener('click',async e=>{
+  const documentNotice=e.target.closest('[data-admin-document-notification]');
+  const markDocumentNotice=e.target.closest('[data-admin-document-notification-read]');
+  if(documentNotice){
+    try{await pasBackend.markMemberDocumentNotificationRead(documentNotice.dataset.adminDocumentNotification);}catch(error){console.warn('No se pudo marcar el aviso documental.',error);}
+    document.getElementById('notificationPanel').classList.add('hidden');
+    showView('documentation');
+    await loadAdminMemberDocuments();
+    const row=document.querySelector(`[data-admin-member-document-row="${CSS.escape(documentNotice.dataset.documentRequest)}"]`);
+    row?.scrollIntoView({behavior:'smooth',block:'center'});
+    await refreshAdminNotificationDot();
+    return;
+  }
+  if(markDocumentNotice){
+    markDocumentNotice.disabled=true;
+    try{await pasBackend.markMemberDocumentNotificationRead(markDocumentNotice.dataset.adminDocumentNotificationRead);await loadNotificationPanel();await refreshAdminNotificationDot();}
+    catch(error){showToast(error.message||'No se pudo actualizar el aviso.');markDocumentNotice.disabled=false;}
+    return;
+  }
   const newRequest=e.target.closest('[data-admin-new-request]');
   if(newRequest){
     document.getElementById('notificationPanel').classList.add('hidden');

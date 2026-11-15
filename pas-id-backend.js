@@ -92,6 +92,16 @@
       return unwrap(client.rpc('mark_pas_notification_read', { p_notification_id: notificationId }), 'notificación');
     },
 
+    async listMemberDocumentNotifications() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('list_my_pas_member_document_notifications'), 'avisos de documentación');
+    },
+
+    async markMemberDocumentNotificationRead(notificationId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('mark_pas_member_document_notification_read', { p_notification_id: notificationId }), 'aviso documental');
+    },
+
     async publishNotification(payload) {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.rpc('publish_pas_notification', {

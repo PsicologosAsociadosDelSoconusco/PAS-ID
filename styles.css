@@ -464,3 +464,21 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 .documentation-security-note p{font-size:9px;line-height:1.6;margin:0}
 @media(max-width:900px){.documentation-admin-grid{grid-template-columns:1fr}}
 @media(max-width:620px){.member-document-row{flex-direction:column;padding:13px;gap:14px}.member-document-title-line,.admin-member-document-head{align-items:flex-start;flex-direction:column}.member-document-actions{width:100%;align-items:stretch;min-width:0}.member-document-actions .btn,.member-document-actions .document-file-picker{width:100%}.member-document-actions>small{text-align:left}.member-documents-intro{gap:11px;padding:14px}.member-documents-intro-icon{width:42px;height:42px}.documentation-create-panel,.documentation-inbox-panel{padding:14px}.admin-member-document-actions{flex-direction:column}.admin-member-document-actions .btn{width:100%}}
+
+/* PAS ID · Estados visibles de entrega documental y avisos dedicados. */
+.member-document-feedback{display:grid;gap:4px;margin:12px 0 8px;padding:11px 13px;border:1px solid #e5ebef;border-radius:10px;background:#f8fafb}
+.member-document-feedback b{font:800 11px Manrope;color:#173452}
+.member-document-feedback span{font-size:10px;line-height:1.55;color:#66798c}
+.member-document-feedback.is-submitted{background:#eff7f2;border-color:#cfe5d6}
+.member-document-feedback.is-submitted b,.member-document-feedback.is-approved b{color:#39734b}
+.member-document-feedback.is-approved{background:#eff7f2;border-color:#cfe5d6}
+.member-document-feedback.is-correction{background:#fff7eb;border-color:#f0ddbd}
+.member-document-feedback.is-correction b{color:#95651e}
+.member-document-file-info{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-top:10px;border:1px solid #e3eaf0;border-radius:9px;background:#fff}
+.member-document-file-icon{width:30px;height:34px;display:grid;place-items:center;border-radius:7px;background:#edf3f8;color:#315877;font-size:16px;flex:none}
+.member-document-file-info>div{display:grid;gap:3px;min-width:0}
+.member-document-file-info b{font-size:10px;color:#28435e;overflow-wrap:anywhere}
+.member-document-file-info small{font-size:9px;color:#8795a3}
+.member-document-actions .document-selected-file{max-width:190px;overflow-wrap:anywhere;color:#546a80;font-size:9px}
+.document-notification-item{background:#fffdf8;border-radius:8px;margin:5px 0;padding:12px 10px!important}
+.document-notification-item.is-unread{border-left:3px solid #e0a428!important;padding-left:10px!important}
