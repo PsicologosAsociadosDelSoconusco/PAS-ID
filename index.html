@@ -436,6 +436,40 @@
         await loadScript('config.js');
         await loadScript('pas-id-backend.js');
         await loadScript('app.js');
+        // Respaldo independiente para el formulario público de reseñas QR.
+        // Si app.js ya lo enlazó, no agrega un segundo listener.
+        var reviewToken = new URLSearchParams(window.location.search).get('review');
+        var reviewForm = document.getElementById('publicProfessionalReviewForm');
+        if (reviewToken && reviewForm && !reviewForm.dataset.reviewSubmitBound) {
+          reviewForm.dataset.reviewSubmitBound = '1';
+          document.getElementById('loginScreen')?.classList.add('hidden');
+          document.getElementById('passwordSetupScreen')?.classList.add('hidden');
+          document.getElementById('appShell')?.classList.add('hidden');
+          document.getElementById('memberPortalScreen')?.classList.add('hidden');
+          document.getElementById('publicScreen')?.classList.remove('hidden');
+          document.getElementById('publicProfessionalReviewPanel')?.classList.remove('hidden');
+          document.getElementById('publicVerifyForm')?.classList.add('hidden');
+          document.getElementById('publicVerifyResult')?.classList.add('hidden');
+          reviewForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            var form = event.currentTarget;
+            var button = document.getElementById('submitPublicProfessionalReview');
+            var message = document.getElementById('publicProfessionalReviewMessage');
+            var rating = Number(new FormData(form).get('publicReviewRating'));
+            if (!rating) { if (message) message.textContent = 'Selecciona una calificación.'; return; }
+            if (button) button.disabled = true;
+            if (message) { message.textContent = 'Enviando tu valoración…'; message.classList.remove('is-error'); }
+            try {
+              if (!window.pasBackend || typeof window.pasBackend.submitProfessionalReview !== 'function') throw new Error('No se pudo iniciar el servicio de valoraciones. Recarga la página e inténtalo nuevamente.');
+              await window.pasBackend.submitProfessionalReview(reviewToken, rating, document.getElementById('publicProfessionalReviewComment').value.trim());
+              form.innerHTML = '<div class="review-thanks"><strong>¡Gracias por compartir tu experiencia!</strong><p>Tu valoración fue recibida y será revisada por Directiva PAS antes de publicarse.</p></div>';
+              history.replaceState({}, '', location.pathname);
+            } catch (error) {
+              if (message) { message.textContent = error && error.message ? error.message : 'No fue posible enviar la valoración. Verifica que el QR siga vigente y no haya sido utilizado.'; message.classList.add('is-error'); }
+              if (button) button.disabled = false;
+            }
+          });
+        }
       }
       boot();
     })();

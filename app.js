@@ -2555,14 +2555,24 @@ async function initializePublicProfessionalReview() {
   document.getElementById('publicVerifyResult')?.classList.add('hidden');
   document.querySelector('.verify-main>h1')?.classList.add('hidden');
   document.querySelector('.verify-main>p')?.classList.add('hidden');
-  document.getElementById('publicProfessionalReviewForm')?.addEventListener('submit',async event=>{
-    event.preventDefault(); const submit=document.getElementById('submitPublicProfessionalReview');
-    const rating=Number(new FormData(event.currentTarget).get('publicReviewRating'));
-    if(!rating){setReviewMessage('publicProfessionalReviewMessage','Selecciona una calificación.',true);return;}
-    submit.disabled=true; setReviewMessage('publicProfessionalReviewMessage','Enviando tu valoración…');
-    try { await pasBackend.submitProfessionalReview(token,rating,document.getElementById('publicProfessionalReviewComment').value.trim()); event.currentTarget.innerHTML='<div class="review-thanks"><strong>¡Gracias por compartir tu experiencia!</strong><p>Tu valoración fue recibida y será revisada por Directiva PAS antes de publicarse.</p></div>'; history.replaceState({},'',location.pathname); }
-    catch(error) { setReviewMessage('publicProfessionalReviewMessage',error.message||'No fue posible enviar la valoración. Verifica que el QR siga vigente y no haya sido utilizado.',true); submit.disabled=false; }
-  });
+  const reviewForm=document.getElementById('publicProfessionalReviewForm');
+  if(reviewForm && !reviewForm.dataset.reviewSubmitBound){
+    reviewForm.dataset.reviewSubmitBound='1';
+    reviewForm.addEventListener('submit',async event=>{
+      event.preventDefault(); const form=event.currentTarget; const submit=document.getElementById('submitPublicProfessionalReview');
+      const rating=Number(new FormData(form).get('publicReviewRating'));
+      if(!rating){setReviewMessage('publicProfessionalReviewMessage','Selecciona una calificación.',true);return;}
+      submit.disabled=true; setReviewMessage('publicProfessionalReviewMessage','Enviando tu valoración…');
+      try {
+        await pasBackend.submitProfessionalReview(token,rating,document.getElementById('publicProfessionalReviewComment').value.trim());
+        form.innerHTML='<div class="review-thanks"><strong>¡Gracias por compartir tu experiencia!</strong><p>Tu valoración fue recibida y será revisada por Directiva PAS antes de publicarse.</p></div>';
+        history.replaceState({},'',location.pathname);
+      } catch(error) {
+        setReviewMessage('publicProfessionalReviewMessage',error.message||'No fue posible enviar la valoración. Verifica que el QR siga vigente y no haya sido utilizado.',true);
+        if(submit) submit.disabled=false;
+      }
+    });
+  }
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initializePublicProfessionalReview); else initializePublicProfessionalReview();
 
