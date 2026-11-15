@@ -50,3 +50,7 @@ Consulta `RENOVACION-ETAPA-1.md` para los cambios del portal de integrantes, la 
 ## Renovación · Etapa 2
 
 Consulta `RENOVACION-ETAPA-2.md` para el centro integral de solicitudes, la asignación al primer directivo que atienda y la mensajería privada por folio. Esta etapa incorpora la migración SQL nueva `009`; no vuelvas a ejecutar las migraciones anteriores.
+
+
+## Renovación PAS ID · Etapa 3
+Consulta `RENOVACION-ETAPA-3.md`. Incluye el repositorio documental privado de integrantes, módulo de gestión de documentación para Directiva y corrección de renderizado del QR en el portal individual.

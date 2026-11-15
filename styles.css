@@ -423,3 +423,44 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 .request-change-summary-photo a{display:flex;align-items:center;gap:10px;color:var(--navy,#173452);text-decoration:none;font-weight:700}
 .request-change-summary-photo img{width:66px;height:66px;object-fit:cover;border-radius:10px;border:1px solid var(--line,#e4eaf0)}
 @media(max-width:640px){.request-change-summary{grid-template-columns:1fr}}
+
+
+/* PAS ID · Repositorio documental privado del integrante */
+.member-documents-intro{display:flex;align-items:flex-start;gap:17px;max-width:1050px;margin-bottom:15px}
+.member-documents-intro-icon{width:54px;height:54px;flex:none;border-radius:14px;background:#f7f0df;color:#b4872f;display:grid;place-items:center;font-size:25px}
+.member-documents-intro h2{font:800 19px Manrope;color:#173452;margin:4px 0 7px}
+.member-documents-intro p{max-width:720px;color:#7e8d9a;font-size:11px;line-height:1.7;margin:0}
+.member-documents-panel{max-width:1150px}
+.member-documents-list,.admin-member-documents-list{display:grid;gap:12px}
+.member-document-row,.admin-member-document-row{border:1px solid #e5ebf0;border-radius:12px;padding:16px;background:#fff;display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.member-document-main{min-width:0;flex:1}
+.member-document-title-line,.admin-member-document-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.member-document-title-line>b,.admin-member-document-head>div>b{font:800 12px Manrope;color:#173452;overflow-wrap:anywhere}
+.member-document-main>p,.admin-member-document-row>p{font-size:10px;color:#687b8d;line-height:1.6;margin:8px 0}
+.member-document-main>small,.admin-member-document-head small,.admin-member-document-meta{display:block;font-size:9px;color:#8996a3;line-height:1.6;margin-top:7px}
+.document-status{display:inline-flex;align-items:center;white-space:nowrap;border-radius:99px;padding:6px 9px;font-size:8px;font-weight:900;letter-spacing:.035em;background:#f0f3f6;color:#697989}
+.document-status.pending{background:#fff5df;color:#9c762c}.document-status.submitted{background:#eaf2fa;color:#315f83}.document-status.approved{background:#eaf5ed;color:#43804d}.document-status.needs-info{background:#fff0ec;color:#ad5d48}
+.member-document-actions{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:170px}
+.member-document-actions .btn,.admin-member-document-actions .btn{min-height:35px;font-size:9px}
+.member-document-actions>small{font-size:8px;color:#8b98a5;text-align:right}
+.document-file-picker{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:35px;padding:0 12px;border:1px solid #d8e0e8;border-radius:8px;color:#274e70;font-size:9px;font-weight:800;cursor:pointer;overflow:hidden}
+.document-file-picker input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.document-review-note{display:grid;gap:3px;margin-top:10px;padding:9px 11px;border-left:3px solid #d9a42c;background:#fffbf1;border-radius:0 7px 7px 0;color:#70582a;font-size:9px;line-height:1.5}
+.document-file-name{overflow-wrap:anywhere}
+.member-documents-empty{padding:30px 15px;text-align:center;border:1px dashed #dce4eb;border-radius:11px;color:#82909d}
+.member-documents-empty>span{display:block;color:#b68a32;font-size:27px;margin-bottom:9px}
+.member-documents-empty>b{display:block;color:#173452;font:800 12px Manrope}
+.member-documents-empty>p{max-width:470px;margin:6px auto 0;font-size:10px;line-height:1.6}
+.documentation-admin-grid{display:grid;grid-template-columns:minmax(280px,.75fr) minmax(0,1.25fr);gap:16px;align-items:start}
+.documentation-create-panel,.documentation-inbox-panel{padding:20px}
+.documentation-inbox-panel{min-width:0}
+.admin-member-document-row{display:block}
+.admin-member-document-head>div{display:grid;gap:4px;min-width:0}
+.admin-member-document-head small{margin:0;overflow-wrap:anywhere}
+.admin-member-document-meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:10px}
+.admin-member-document-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
+.documentation-security-note{display:flex;align-items:flex-start;gap:11px;padding:13px 15px;margin-top:15px;background:#edf3f8;border-radius:10px;color:#516d84}
+.documentation-security-note>span{font-size:18px;color:#bc8f36}
+.documentation-security-note p{font-size:9px;line-height:1.6;margin:0}
+@media(max-width:900px){.documentation-admin-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.member-document-row{flex-direction:column;padding:13px;gap:14px}.member-document-title-line,.admin-member-document-head{align-items:flex-start;flex-direction:column}.member-document-actions{width:100%;align-items:stretch;min-width:0}.member-document-actions .btn,.member-document-actions .document-file-picker{width:100%}.member-document-actions>small{text-align:left}.member-documents-intro{gap:11px;padding:14px}.member-documents-intro-icon{width:42px;height:42px}.documentation-create-panel,.documentation-inbox-panel{padding:14px}.admin-member-document-actions{flex-direction:column}.admin-member-document-actions .btn{width:100%}}

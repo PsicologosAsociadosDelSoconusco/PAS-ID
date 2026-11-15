@@ -143,20 +143,15 @@
       </section>
 
       <section class="member-view" id="memberViewExpediente" aria-labelledby="memberExpedienteHeading">
-        <div class="member-page-heading"><div><span class="eyebrow">REGISTRO INSTITUCIONAL · PAS</span><h1 id="memberExpedienteHeading">Mi <em>expediente.</em></h1><p>Consulta la información principal de tu registro y el estado de tu membresía.</p></div></div>
-        <article class="member-portal-card member-expediente-card">
-          <div class="member-portal-card-head"><span class="eyebrow">EXPEDIENTE DIGITAL</span><span id="memberExpedienteStatus" class="status-pill status-active">Activo</span></div>
-          <h2 id="memberExpedienteName">Integrante PAS</h2><p class="member-portal-folio" id="memberExpedienteFolio">Folio / identificador: —</p>
-          <div class="member-expediente-facts">
-            <div><span>TIPO DE INTEGRANTE</span><b id="memberExpedienteType">—</b></div>
-            <div><span>FECHA DE INGRESO</span><b id="memberExpedienteIssued">—</b></div>
-            <div><span>VIGENCIA</span><b id="memberExpedienteExpires">—</b></div>
-            <div><span>ESPECIALIDAD</span><b id="memberExpedienteSpecialty">Por completar</b></div>
-            <div><span>CÉDULA PROFESIONAL</span><b id="memberExpedienteLicense">Por completar</b></div>
-            <div><span>IDENTIFICADOR DE CREDENCIAL</span><b id="memberExpedienteCredential">—</b></div>
-          </div>
-          <p class="member-expediente-note">Los datos de este expediente se administran desde los registros institucionales de PAS. Para solicitar una actualización, utiliza el apartado «Mis solicitudes».</p>
-        </article>
+        <div class="member-page-heading"><div><span class="eyebrow">DOCUMENTACIÓN INSTITUCIONAL · PAS</span><h1 id="memberExpedienteHeading">Mi <em>expediente.</em></h1><p>Entrega y consulta los documentos que la asociación te solicite.</p></div></div>
+        <section class="member-portal-card member-documents-intro">
+          <div class="member-documents-intro-icon">▤</div>
+          <div><span class="eyebrow">TU REPOSITORIO DOCUMENTAL</span><h2>Documentos solicitados por PAS</h2><p>En este espacio encontrarás los documentos que la Directiva te pida entregar. Cada entrega queda vinculada a tu cuenta y podrás consultar si fue recibida, aprobada o requiere correcciones.</p></div>
+        </section>
+        <section class="member-portal-card member-documents-panel">
+          <div class="member-portal-section-head"><div><span class="eyebrow">PENDIENTES Y ENTREGAS</span><h2>Mis documentos</h2><p>Los archivos que subas serán visibles únicamente para ti y para el personal autorizado de Directiva.</p></div><button type="button" class="btn btn-outline" id="refreshMyMemberDocuments">Actualizar ↻</button></div>
+          <div id="memberDocumentsList" class="member-documents-list" aria-live="polite"><p class="muted">Cargando documentos solicitados…</p></div>
+        </section>
       </section>
 
       <section class="member-view" id="memberViewEvents" aria-labelledby="memberEventsHeading"><section class="member-portal-card member-events-card" aria-labelledby="memberEventsHeading">
@@ -234,6 +229,7 @@
         <button class="nav-item" data-view="credentials"><span class="nav-icon">▤</span>Credenciales</button>
         <button class="nav-item" data-view="events"><span class="nav-icon">▦</span>Eventos y asistencia</button>
         <button class="nav-item" data-view="requests"><span class="nav-icon">✉</span>Solicitudes institucionales</button>
+        <button class="nav-item" data-view="documentation"><span class="nav-icon">▣</span>Documentación</button>
         <button class="nav-item" data-view="certificates"><span class="nav-icon">♧</span>Constancias</button>
         <div class="nav-section-label">CONSULTA</div>
         <button class="nav-item" data-view="verification"><span class="nav-icon">⌕</span>Verificar credencial</button>
@@ -324,6 +320,26 @@
           <div class="panel profile-requests-panel"><div class="panel-heading"><div><span class="eyebrow">BANDEJA DE ENTRADA</span><h3>Solicitudes recibidas</h3></div><span class="toolbar-count" id="institutionalRequestCount">0 pendientes</span></div><div id="institutionalRequestsAdminList" class="profile-requests-list"><p class="muted">Cargando solicitudes…</p></div></div>
           <section id="adminRequestThreadPanel" class="panel request-thread-panel hidden"><div class="request-thread-heading"><div><span class="eyebrow">GESTIÓN DEL CASO</span><h3 id="adminRequestThreadTitle">Solicitud</h3><small id="adminRequestThreadMeta"></small></div><button type="button" class="btn btn-outline" id="closeAdminRequestThread">Cerrar conversación</button></div><div class="admin-request-controls"><div><label for="adminRequestStatus">ESTADO DEL CASO</label><select id="adminRequestStatus"><option value="in_review">En revisión</option><option value="needs_info">Requiere información</option><option value="approved">Resuelta / aprobada</option><option value="rejected">Rechazada</option></select></div><div><label for="adminRequestStatusNote">NOTA DE ESTADO (OPCIONAL)</label><input id="adminRequestStatusNote" maxlength="3000" placeholder="Explica brevemente el cambio de estado"></div><button class="btn btn-outline" type="button" id="saveAdminRequestStatus">Actualizar estado</button></div><div class="admin-request-transfer"><div><label for="adminRequestTransferTarget">TRANSFERIR RESPONSABILIDAD</label><select id="adminRequestTransferTarget"><option value="">Selecciona otro directivo</option></select></div><button class="btn btn-outline" type="button" id="transferAdminRequest">Transferir caso</button><button class="btn btn-ghost" type="button" id="releaseAdminRequest">Devolver a bandeja</button></div><div id="adminRequestEvents" class="request-event-list"></div><div id="adminRequestMessages" class="request-message-list"><p class="muted">Selecciona una solicitud para abrir la conversación.</p></div><form id="adminRequestReplyForm" class="request-reply-form"><label for="adminRequestReply">Respuesta al solicitante</label><textarea id="adminRequestReply" rows="3" maxlength="5000" required placeholder="Escribe una respuesta dentro del expediente…"></textarea><button class="btn btn-primary" type="submit">Enviar respuesta →</button></form></section>
           <details class="panel directiva-request-create"><summary>Crear una solicitud desde Directiva</summary><form id="directivaInstitutionalRequestForm" class="institutional-request-form"><div class="form-field"><label for="directivaRequestCategory">CATEGORÍA *</label><select id="directivaRequestCategory" required><option value="">Selecciona una categoría</option><option>Membresía y afiliación</option><option>Credenciales y verificación</option><option>Actualización de expediente</option><option>Perfil profesional y directorio</option><option>Constancias y documentos</option><option>Formación y Academia PAS</option><option>Eventos y participación</option><option>Propuestas y colaboraciones</option><option>Apoyo o gestión institucional</option><option>Otra solicitud</option></select></div><div class="form-field"><label for="directivaRequestSubject">ASUNTO *</label><input id="directivaRequestSubject" maxlength="160" required></div><div class="form-field full"><label for="directivaRequestDescription">DESCRIPCIÓN *</label><textarea id="directivaRequestDescription" rows="4" maxlength="5000" required></textarea></div><div class="form-field"><label for="directivaRequestPlace">LUGAR / INSTITUCIÓN (OPCIONAL)</label><input id="directivaRequestPlace" maxlength="180"></div><div class="form-field"><label for="directivaRequestDate">FECHA PROPUESTA (OPCIONAL)</label><input id="directivaRequestDate" type="date"></div><div class="form-field full"><button class="btn btn-primary" type="submit">Crear solicitud →</button></div></form></details>
+        </section>
+        <section class="view" id="view-documentation">
+          <div class="page-heading"><div><div class="eyebrow">EXPEDIENTES DIGITALES · PAS <span class="gold-dash"></span></div><h1>Gestión de <em>documentación.</em></h1><p>Solicita documentos a los integrantes y revisa sus entregas desde un solo lugar.</p></div><button type="button" class="btn btn-outline" id="refreshAdminMemberDocuments">Actualizar ↻</button></div>
+          <div class="documentation-admin-grid">
+            <section class="panel documentation-create-panel">
+              <div class="panel-heading"><div><span class="eyebrow">NUEVO REQUERIMIENTO</span><h3>Solicitar documentación</h3></div></div>
+              <form id="createMemberDocumentRequestForm" class="form-grid">
+                <div class="form-field full"><label for="documentRequestMember">DESTINATARIO</label><select id="documentRequestMember"><option value="">Cargando integrantes…</option></select><small class="field-help">Puedes solicitarlo a todos los integrantes activos con cuenta o a una persona en particular.</small></div>
+                <div class="form-field full"><label for="documentRequestTitle">DOCUMENTO SOLICITADO *</label><input id="documentRequestTitle" maxlength="140" required placeholder="Ej. Identificación oficial vigente"></div>
+                <div class="form-field full"><label for="documentRequestInstructions">INSTRUCCIONES</label><textarea id="documentRequestInstructions" rows="4" maxlength="1200" placeholder="Indica el formato, vigencia o características que debe cumplir el documento."></textarea></div>
+                <div class="form-field"><label for="documentRequestDueDate">FECHA LÍMITE (OPCIONAL)</label><input id="documentRequestDueDate" type="date"></div>
+                <div class="form-field full"><button type="submit" class="btn btn-primary" id="createMemberDocumentRequestButton">Enviar requerimiento →</button></div>
+              </form>
+            </section>
+            <section class="panel documentation-inbox-panel">
+              <div class="panel-heading"><div><span class="eyebrow">RECEPCIÓN Y REVISIÓN</span><h3>Documentos de integrantes</h3></div><span id="adminMemberDocumentCount" class="toolbar-count">0 registros</span></div>
+              <div id="adminMemberDocumentsList" class="admin-member-documents-list"><p class="muted">Cargando documentos…</p></div>
+            </section>
+          </div>
+          <div class="documentation-security-note"><span>⌑</span><p>Los archivos se almacenan en un espacio privado. Cada integrante consulta únicamente sus propios documentos; Directiva puede revisar las entregas conforme a sus permisos.</p></div>
         </section>
         <section class="view" id="view-certificates">
           <div class="page-heading"><div><div class="eyebrow">RECONOCIMIENTO Y FORMACIÓN <span class="gold-dash"></span></div><h1>Constancias y <em>certificados.</em></h1><p>Historial de participación y documentos emitidos por PAS.</p></div><span class="public-tag">GESTIÓN INSTITUCIONAL</span></div>

@@ -10,6 +10,8 @@ let signedInRole = '';
 let signedInUserId = '';
 let myInstitutionalRequests = [];
 let adminInstitutionalRequests = [];
+let myMemberDocumentRequests = [];
+let adminMemberDocumentRequests = [];
 let activeMemberRequestId = null;
 let activeAdminRequestId = null;
 let directivaOperators = [];
@@ -192,19 +194,6 @@ function pasQrImageUrl(value, size = 420) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=1&color=173655&bgcolor=ffffff&data=${encoded}`;
 }
 
-function drawQrFallback(canvas, value, size) {
-  // Compatibilidad con llamadas antiguas: el QR visible ahora se muestra como <img>
-  // para reutilizar la misma imagen en impresión sin exportar canvas contaminado.
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#f1f4f7';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#52677e';
-  ctx.font = '10px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('Usa la imagen QR', canvas.width / 2, canvas.height / 2);
-}
 
 function printEligibleMembers() {
   return members.filter(member => effectiveStatus(member) === 'Activo' && (member.publicIdentifier || member.id));
@@ -354,7 +343,7 @@ function renderCredentials() {
   cardQr.alt = qrImage.alt;
 }
 function renderAll() {
-  updateStats(); renderRecent(); renderMembers(); renderCredentials();
+  updateStats(); renderRecent(); renderMembers(); renderCredentials(); populateDocumentRequestMemberOptions();
 }
 function profileChangeLabel(key) {
   return ({contact_email:'Correo de contacto',phone:'Teléfono',professional_license:'Cédula profesional',specialty:'Área / especialidad',city:'Municipio',state:'Estado',office_address:'Dirección del consultorio',office_latitude:'Latitud del consultorio',office_longitude:'Longitud del consultorio',service_modality:'Modalidad de atención',public_directory_enabled:'Solicitud para aparecer en el directorio público',about:'Presentación profesional',photo_path:'Fotografía profesional (pendiente de revisión)'})[key] || key;
@@ -388,7 +377,7 @@ function showView(viewName) {
   document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
   target.classList.add('active');
   document.querySelectorAll('.nav-item[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === viewName));
-  const labels = {overview:'Resumen',members:'Directorio de miembros',credentials:'Credenciales',events:'Eventos y asistencia',requests:'Solicitudes institucionales',certificates:'Constancias',verification:'Verificar credencial',settings:'Configuración'};
+  const labels = {overview:'Resumen',members:'Directorio de miembros',credentials:'Credenciales',events:'Eventos y asistencia',requests:'Solicitudes institucionales',documentation:'Gestión de documentación',certificates:'Constancias',verification:'Verificar credencial',settings:'Configuración'};
   document.getElementById('breadcrumbCurrent').textContent = labels[viewName] || 'Plataforma';
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarScrim').classList.remove('show');
@@ -396,6 +385,7 @@ function showView(viewName) {
   if (viewName === 'credentials') renderPrintMemberSelection();
   if (viewName === 'events') loadEventsModule();
   if (viewName === 'requests') loadInstitutionalRequestsAdmin();
+  if (viewName === 'documentation') loadAdminMemberDocuments();
   if (viewName === 'certificates') loadCertificatesModule();
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -792,6 +782,68 @@ document.getElementById('officeMapLocateButton')?.addEventListener('click',()=>{
     {enableHighAccuracy:true,timeout:12000,maximumAge:60000});
 });
 
+function memberDocumentStatusLabel(status) {
+  return ({pending:'Pendiente de entrega',submitted:'Entregado · en revisión',approved:'Aprobado',changes_requested:'Requiere corrección'})[status] || 'Pendiente';
+}
+function memberDocumentStatusClass(status) {
+  return ({pending:'pending',submitted:'submitted',approved:'approved',changes_requested:'needs-info'})[status] || 'pending';
+}
+function formatMemberDocumentDueDate(value) {
+  if (!value) return 'Sin fecha límite';
+  return new Date(`${value}T00:00:00`).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+}
+async function loadMyMemberDocuments() {
+  const target=document.getElementById('memberDocumentsList');
+  if(!target || !connectedMode) return;
+  target.innerHTML='<p class="muted">Consultando documentos solicitados…</p>';
+  try {
+    myMemberDocumentRequests=await pasBackend.listMyMemberDocumentRequests();
+    if(!myMemberDocumentRequests.length) {
+      target.innerHTML='<div class="member-documents-empty"><span>▤</span><b>No tienes documentos pendientes.</b><p>Cuando la asociación te solicite algún documento, aparecerá aquí con sus instrucciones y fecha límite.</p></div>';
+      return;
+    }
+    target.innerHTML=myMemberDocumentRequests.map(doc=>`<article class="member-document-row"><div class="member-document-main"><div class="member-document-title-line"><b>${escapeHtml(doc.title)}</b><span class="document-status ${memberDocumentStatusClass(doc.status)}">${memberDocumentStatusLabel(doc.status)}</span></div>${doc.instructions?`<p>${escapeHtml(doc.instructions)}</p>`:''}<small>Solicitado: ${new Date(doc.requested_at).toLocaleDateString('es-MX')} · ${formatMemberDocumentDueDate(doc.due_date)}</small>${doc.review_notes?`<div class="document-review-note"><b>Observaciones de Directiva</b><span>${escapeHtml(doc.review_notes)}</span></div>`:''}${doc.original_filename?`<small class="document-file-name">Archivo: ${escapeHtml(doc.original_filename)}</small>`:''}</div><div class="member-document-actions">${doc.storage_path?`<button type="button" class="btn btn-outline" data-open-my-member-document="${doc.id}">Ver archivo</button>`:''}${['pending','changes_requested'].includes(doc.status)?`<label class="document-file-picker">${doc.status==='changes_requested'?'Reemplazar documento':'Seleccionar archivo'}<input type="file" data-member-document-file="${doc.id}" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"></label><button type="button" class="btn btn-primary" data-submit-my-member-document="${doc.id}">Enviar documento</button><small>PDF, JPG, PNG o WEBP · Máximo 10 MB</small>`:''}</div></article>`).join('');
+  } catch(error) { target.innerHTML=`<p class="muted">No fue posible cargar tus documentos: ${escapeHtml(error.message||'')}</p>`; }
+}
+function populateDocumentRequestMemberOptions() {
+  const select=document.getElementById('documentRequestMember');
+  if(!select)return;
+  const previous=select.value;
+  const eligible=members.filter(m=>m.authUserId && m.status==='Activo' && !/directiva/i.test(m.type||''));
+  select.innerHTML='<option value="">Todos los integrantes activos con cuenta</option>'+eligible.map(m=>`<option value="${escapeHtml(m.backendId)}">${escapeHtml(m.name)} · ${escapeHtml(m.id)}</option>`).join('');
+  if(previous && [...select.options].some(o=>o.value===previous))select.value=previous;
+}
+function renderAdminMemberDocumentRequests(rows) {
+  const target=document.getElementById('adminMemberDocumentsList');
+  if(!target)return;
+  if(!rows.length){target.innerHTML='<div class="member-documents-empty"><span>▤</span><b>Aún no hay requerimientos documentales.</b><p>Utiliza el formulario para solicitar un documento a uno o varios integrantes.</p></div>';return;}
+  target.innerHTML=rows.map(doc=>{
+    const m=Array.isArray(doc.members)?doc.members[0]:doc.members;
+    return `<article class="admin-member-document-row"><div class="admin-member-document-head"><div><b>${escapeHtml(doc.title)}</b><small>${escapeHtml(m?.full_name||'Integrante PAS')} · ${escapeHtml(m?.legacy_folio||m?.member_type||'')} · ${new Date(doc.requested_at).toLocaleDateString('es-MX')}</small></div><span class="document-status ${memberDocumentStatusClass(doc.status)}">${memberDocumentStatusLabel(doc.status)}</span></div>${doc.instructions?`<p>${escapeHtml(doc.instructions)}</p>`:''}<div class="admin-member-document-meta"><span>Fecha límite: ${formatMemberDocumentDueDate(doc.due_date)}</span>${doc.original_filename?`<span>Archivo: ${escapeHtml(doc.original_filename)} (${(Number(doc.file_size||0)/1024/1024).toFixed(2)} MB)</span>`:''}</div>${doc.review_notes?`<div class="document-review-note"><b>Observaciones registradas</b><span>${escapeHtml(doc.review_notes)}</span></div>`:''}<div class="admin-member-document-actions">${doc.storage_path?`<button class="btn btn-outline" type="button" data-open-admin-member-document="${doc.id}">Abrir entrega ↗</button>`:''}${doc.status==='submitted'?`<button class="btn btn-outline" type="button" data-review-member-document="${doc.id}" data-decision="changes_requested">Solicitar corrección</button><button class="btn btn-primary" type="button" data-review-member-document="${doc.id}" data-decision="approved">Aprobar documento</button>`:''}</div></article>`;
+  }).join('');
+}
+async function loadAdminMemberDocuments() {
+  const target=document.getElementById('adminMemberDocumentsList');
+  if(!target || !connectedMode || signedInRole!=='directiva')return;
+  target.innerHTML='<p class="muted">Consultando expedientes documentales…</p>';
+  try {
+    populateDocumentRequestMemberOptions();
+    adminMemberDocumentRequests=await pasBackend.listMemberDocumentRequests();
+    const submitted=adminMemberDocumentRequests.filter(d=>d.status==='submitted').length;
+    const pending=adminMemberDocumentRequests.filter(d=>d.status==='pending'||d.status==='changes_requested').length;
+    document.getElementById('adminMemberDocumentCount').textContent=`${submitted} por revisar · ${pending} pendientes`;
+    renderAdminMemberDocumentRequests(adminMemberDocumentRequests);
+  } catch(error) { target.innerHTML=`<p class="muted">No fue posible cargar la documentación: ${escapeHtml(error.message||'')}</p>`; }
+}
+async function openMemberDocumentFile(requestId, isAdmin=false) {
+  const rows=isAdmin?adminMemberDocumentRequests:myMemberDocumentRequests;
+  const row=rows.find(item=>item.id===requestId);
+  if(!row?.storage_path){showToast('Todavía no hay un archivo entregado.');return;}
+  const popup=window.open('about:blank','_blank');
+  try { const url=await pasBackend.getMemberDocumentSignedUrl(row.storage_path); if(popup) popup.location.href=url; else showToast('Permite las ventanas emergentes para abrir el documento.'); }
+  catch(error){popup?.close();showToast(error.message||'No fue posible abrir el documento.');}
+}
+
 const memberViewLabels = {dashboard:'Inicio',credential:'Mi credencial',expediente:'Mi expediente',profile:'Mi perfil',directory:'Directorio profesional',requests:'Mis solicitudes',events:'Eventos y asistencia',certificates:'Mis constancias',notifications:'Notificaciones',academy:'Academia PAS'};
 function showMemberView(viewName) {
   if (viewName === 'directory') { openMemberDirectory(); return; }
@@ -815,6 +867,7 @@ function showMemberView(viewName) {
   document.getElementById('memberNotificationPanel').classList.add('hidden');
   if (viewName === 'profile') { initializeOfficeLocationMap(); setTimeout(()=>officeLocationMap?.invalidateSize(),160); }
   if (viewName === 'requests') loadMyInstitutionalRequests();
+  if (viewName === 'expediente') loadMyMemberDocuments();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function openMemberDirectory() {
@@ -877,19 +930,6 @@ function showMemberPortal(profile) {
   if (credentialExpires) credentialExpires.textContent = spanishDateFromIso(credential.expires_on || member.expires_on);
   if (credentialStatus) credentialStatus.textContent = `● ${String(status).toLocaleUpperCase('es-MX')}`;
   if (credentialIdCopy) credentialIdCopy.textContent = identifier;
-  const expedienteValues = {
-    memberExpedienteName: fullName,
-    memberExpedienteType: member.member_type || (signedInRole === 'colaborador' ? 'Colaborador' : 'Afiliado'),
-    memberExpedienteIssued: spanishDateFromIso(member.issued_on),
-    memberExpedienteExpires: spanishDateFromIso(credential.expires_on || member.expires_on),
-    memberExpedienteSpecialty: detail.specialty || 'Por completar',
-    memberExpedienteLicense: detail.professional_license || 'Por completar',
-    memberExpedienteCredential: identifier,
-    memberExpedienteFolio: `Folio / identificador: ${member.legacy_folio || identifier}`
-  };
-  Object.entries(expedienteValues).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.textContent=value;});
-  const expedienteStatus=document.getElementById('memberExpedienteStatus');
-  if(expedienteStatus){expedienteStatus.textContent=status;expedienteStatus.className=`status-pill ${statusClass(status)}`;}
   document.getElementById('memberPortalAccountEmail').textContent = signedInEmail || '';
   document.getElementById('memberPortalType').textContent = member.member_type || (signedInRole === 'colaborador' ? 'Colaborador' : 'Afiliado');
   document.getElementById('memberPortalFolio').textContent = `Folio / identificador: ${member.legacy_folio || identifier}`;
@@ -906,17 +946,16 @@ function showMemberPortal(profile) {
   link.href = verifyUrl || '#';
   link.classList.toggle('disabled-link', !verifyUrl);
   const canvas = document.getElementById('memberPortalQrCanvas');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (verifyUrl && window.QRCode?.toCanvas) {
-    window.QRCode.toCanvas(canvas, verifyUrl, {width:168, margin:1, color:{dark:'#173655',light:'#ffffff'}})
-      .catch(error => { console.warn('SDK QR no disponible; usando generador alternativo.', error); drawQrFallback(canvas, verifyUrl, 168); });
-  } else if (verifyUrl) {
-    drawQrFallback(canvas, verifyUrl, 168);
-  } else {
+  if (verifyUrl) {
+    // El fallback anterior solo escribía texto en el canvas. Reutilizamos
+    // el generador QR que también usa el flujo de impresión de credenciales.
+    void renderPasQr(canvas, verifyUrl, 168);
+  } else if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#52677e'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('QR no disponible', canvas.width/2, canvas.height/2);
+    ctx.fillText('Credencial pendiente', canvas.width/2, canvas.height/2);
   }
   const photoPreview = document.getElementById('profilePhotoPreview');
   const photoPlaceholder = document.getElementById('profilePhotoPlaceholder');
@@ -947,6 +986,7 @@ function showMemberPortal(profile) {
   };
   Object.entries(fields).forEach(([id,value]) => { const el=document.getElementById(id); if (!el) return; if (el.type==='checkbox') el.checked=Boolean(value); else el.value=value; });
   loadMyInstitutionalRequests();
+  loadMyMemberDocuments();
   loadMemberEvents();
   loadMyCertificates();
   refreshMemberNotificationDot();
@@ -1196,6 +1236,46 @@ document.getElementById('profileChangeForm').addEventListener('submit', async ev
     button.disabled = false; button.textContent = 'Enviar actualización a Directiva →';
   }
 });
+document.getElementById('refreshMyMemberDocuments')?.addEventListener('click',loadMyMemberDocuments);
+document.getElementById('memberDocumentsList')?.addEventListener('click',async event=>{
+  const open=event.target.closest('[data-open-my-member-document]');
+  const submit=event.target.closest('[data-submit-my-member-document]');
+  if(open){await openMemberDocumentFile(open.dataset.openMyMemberDocument,false);return;}
+  if(submit){
+    const requestId=submit.dataset.submitMyMemberDocument;
+    const input=document.querySelector(`[data-member-document-file="${CSS.escape(requestId)}"]`);
+    const file=input?.files?.[0];
+    if(!file){showToast('Selecciona el archivo que deseas entregar.');return;}
+    submit.disabled=true;submit.textContent='Subiendo documento…';
+    try{await pasBackend.uploadMyMemberDocument(requestId,file);await loadMyMemberDocuments();showToast('Documento enviado correctamente.');}
+    catch(error){showToast(error.message||'No se pudo enviar el documento.');submit.disabled=false;submit.textContent='Enviar documento';}
+  }
+});
+document.getElementById('createMemberDocumentRequestForm')?.addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget;const button=document.getElementById('createMemberDocumentRequestButton');button.disabled=true;button.textContent='Enviando requerimiento…';
+  try{
+    const memberId=document.getElementById('documentRequestMember').value||null;
+    const count=await pasBackend.createMemberDocumentRequest({memberId,title:document.getElementById('documentRequestTitle').value.trim(),instructions:document.getElementById('documentRequestInstructions').value.trim(),dueDate:document.getElementById('documentRequestDueDate').value||null});
+    form.reset();populateDocumentRequestMemberOptions();await loadAdminMemberDocuments();showToast(`Requerimiento enviado a ${count} integrante(s).`);
+  }catch(error){showToast(error.message||'No se pudo crear el requerimiento.');}
+  finally{button.disabled=false;button.textContent='Enviar requerimiento →';}
+});
+document.getElementById('refreshAdminMemberDocuments')?.addEventListener('click',loadAdminMemberDocuments);
+document.getElementById('adminMemberDocumentsList')?.addEventListener('click',async event=>{
+  const open=event.target.closest('[data-open-admin-member-document]');
+  const review=event.target.closest('[data-review-member-document]');
+  if(open){await openMemberDocumentFile(open.dataset.openAdminMemberDocument,true);return;}
+  if(review){
+    const id=review.dataset.reviewMemberDocument;const decision=review.dataset.decision;
+    const notes=decision==='changes_requested'?window.prompt('Describe qué debe corregir el integrante:',''):'';
+    if(decision==='changes_requested' && !String(notes||'').trim())return;
+    if(decision==='approved' && !window.confirm('¿Confirmas que el documento cumple con lo solicitado?'))return;
+    review.disabled=true;
+    try{await pasBackend.reviewMemberDocumentRequest(id,decision,notes||'');await loadAdminMemberDocuments();showToast(decision==='approved'?'Documento aprobado.':'Se solicitó una corrección al integrante.');}
+    catch(error){showToast(error.message||'No se pudo revisar el documento.');review.disabled=false;}
+  }
+});
+
 document.getElementById('institutionalRequestForm').addEventListener('submit', async event => {
   event.preventDefault();
   const button = document.getElementById('submitInstitutionalRequest'); button.disabled = true; button.textContent = 'Enviando…';

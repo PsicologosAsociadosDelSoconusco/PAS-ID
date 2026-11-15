@@ -227,6 +227,62 @@
         .order('submitted_at', { ascending: false }), 'solicitudes de actualización');
     },
 
+    async listMyMemberDocumentRequests() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('member_document_requests')
+        .select('id,title,instructions,due_date,status,requested_at,submitted_at,storage_path,original_filename,mime_type,file_size,reviewed_at,review_notes')
+        .order('requested_at', { ascending: false }), 'mis documentos solicitados');
+    },
+
+    async listMemberDocumentRequests() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('member_document_requests')
+        .select('id,member_id,title,instructions,due_date,status,requested_at,submitted_at,storage_path,original_filename,mime_type,file_size,reviewed_at,review_notes,members(full_name,legacy_folio,member_type)')
+        .order('requested_at', { ascending: false }), 'documentación de integrantes');
+    },
+
+    async createMemberDocumentRequest({ memberId = null, title, instructions = '', dueDate = null }) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('create_pas_member_document_request', {
+        p_member_id: memberId || null, p_title: title, p_instructions: instructions || null, p_due_date: dueDate || null
+      }), 'solicitud de documentación');
+    },
+
+    async uploadMyMemberDocument(requestId, file) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      if (!file) throw new Error('Selecciona un archivo.');
+      const allowed = ['application/pdf','image/jpeg','image/png','image/webp'];
+      if (!allowed.includes(file.type)) throw new Error('El archivo debe ser PDF, JPG, PNG o WEBP.');
+      if (file.size > 10 * 1024 * 1024) throw new Error('El archivo no puede superar 10 MB.');
+      const request = await unwrap(client.from('member_document_requests').select('id,member_id,status').eq('id', requestId).single(), 'solicitud de documento');
+      if (!['pending','changes_requested'].includes(request.status)) throw new Error('Esta solicitud ya no admite una nueva entrega.');
+      const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+      const path = `${request.member_id}/${request.id}/document.${ext}`;
+      await unwrap(client.storage.from('pas-member-documents').upload(path, file, { contentType:file.type, cacheControl:'3600', upsert:true }), 'carga de documento');
+      try {
+        return await unwrap(client.rpc('submit_my_pas_member_document', {
+          p_request_id: request.id, p_storage_path: path,
+          p_original_filename: String(file.name || `documento.${ext}`).slice(0,255),
+          p_mime_type: file.type, p_file_size: file.size
+        }), 'envío de documento');
+      } catch (error) {
+        // El objeto queda protegido por Storage RLS; si falla el registro, se intenta limpiar.
+        await client.storage.from('pas-member-documents').remove([path]).catch(() => {});
+        throw error;
+      }
+    },
+
+    async reviewMemberDocumentRequest(requestId, decision, notes = '') {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('review_pas_member_document', { p_request_id: requestId, p_decision: decision, p_notes: notes || null }), 'revisión de documento');
+    },
+
+    async getMemberDocumentSignedUrl(path) {
+      if (!configured || !path) throw new Error('No hay un documento disponible.');
+      const data = await unwrap(client.storage.from('pas-member-documents').createSignedUrl(path, 90), 'acceso temporal al documento');
+      return data.signedUrl;
+    },
+
     async updateMemberProfile(memberId, changes) {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.rpc('update_pas_member_profile', {
