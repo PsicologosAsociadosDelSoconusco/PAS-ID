@@ -52,3 +52,7 @@ Esta entrega integra la interfaz frontend con la capa de base de datos de valora
 - El comentario es opcional. Se recomienda no escribir nombres, diagnósticos, detalles clínicos ni datos que permitan identificar a alguien.
 - La confirmación de publicación en la interfaz es una acción administrativa, no una verificación automática de la atención.
 - Esta entrega no se ha probado contra el proyecto Supabase en producción; requiere ejecutar la migración y completar las pruebas anteriores antes de anunciar el módulo como operativo.
+
+
+## Corrección puntual del error al generar QR
+Si ya ejecutaste la migración 015 y el botón muestra `function gen_random_bytes(integer) does not exist`, ejecuta **solo** `supabase/016_fix_review_qr_crypto_schema.sql` en Supabase SQL Editor. Esta corrección califica las funciones `pgcrypto` en el esquema `extensions` (donde la instalación base de PAS ID ya las declara) y reemplaza las dos funciones RPC afectadas. No vuelvas a ejecutar 015 ni las migraciones anteriores.

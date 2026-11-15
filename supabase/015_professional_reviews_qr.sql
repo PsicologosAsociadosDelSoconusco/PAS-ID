@@ -45,9 +45,9 @@ begin
    raise exception 'Primero debes tener tu perfil profesional aprobado y visible en el directorio.' using errcode='22023';
  end if;
  update public.professional_review_invites set revoked_at=now() where member_id=v_member and used_at is null and revoked_at is null;
- v_token := encode(gen_random_bytes(32),'hex');
+ v_token := pg_catalog.encode(extensions.gen_random_bytes(32),'hex');
  insert into public.professional_review_invites(member_id,token_hash,created_by)
- values(v_member,encode(digest(v_token,'sha256'),'hex'),auth.uid());
+ values(v_member,pg_catalog.encode(extensions.digest(v_token,'sha256'),'hex'),auth.uid());
  return query select v_token, now()+interval '30 days';
 end; $$;
 revoke all on function public.create_my_professional_review_invite() from public,anon;
@@ -61,7 +61,7 @@ begin
  if p_token is null or length(p_token)<>64 or p_rating not between 1 and 5 then raise exception 'La invitación o la valoración no son válidas.' using errcode='22023'; end if;
  if p_comment is not null and length(p_comment)>600 then raise exception 'El comentario supera el máximo permitido.' using errcode='22023'; end if;
  select * into v_invite from public.professional_review_invites
- where token_hash=encode(digest(p_token,'sha256'),'hex') for update;
+ where token_hash=pg_catalog.encode(extensions.digest(p_token,'sha256'),'hex') for update;
  if not found or v_invite.used_at is not null or v_invite.revoked_at is not null or v_invite.expires_at<now() then
    raise exception 'Este QR ya fue utilizado, venció o fue desactivado. Solicita una nueva invitación al profesional.' using errcode='22023';
  end if;
