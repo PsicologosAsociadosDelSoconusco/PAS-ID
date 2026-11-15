@@ -40,3 +40,10 @@ El módulo no cambia folios, vigencias, estados ni registros de credenciales. So
 - Los términos y condiciones se presentan justificados para mantener los bordes de texto parejos.
 - El QR se genera con `QRCode.toCanvas`, el mismo generador y la misma URL de verificación que usa PAS ID en sus credenciales y perfiles. Después se incorpora al PDF como imagen PNG para asegurar que aparezca al imprimir.
 - No se agrega ninguna ruta, tabla, función SQL ni sistema QR nuevo.
+
+
+## Corrección definitiva del QR en impresión
+- La impresión invoca ahora el helper compartido `renderPasQr()` que ya utiliza PAS ID en pantalla. No crea una segunda implementación.
+- El helper usa el generador local y sus alternativas existentes, conservando `buildVerificationUrl(identifier)`.
+- El QR se convierte en PNG embebido en el HTML de impresión y se espera la carga de las imágenes antes de mostrar el diálogo de impresión.
+- Si no se consigue generar el QR, la impresión ya no debe confundirse con una imagen QR: el helper mostrará su estado de error dentro del recuadro.

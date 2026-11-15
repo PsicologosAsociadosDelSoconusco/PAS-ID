@@ -250,17 +250,11 @@ async function generateCredentialPrintPdf() {
       const identifier = member.publicIdentifier || member.id;
       const verifyUrl = buildVerificationUrl(identifier);
       let qr = '';
-      // Reutiliza el mismo generador QR que ya usa PAS ID para credenciales y perfiles.
-      if (window.QRCode?.toCanvas) {
-        const qrCanvas = document.createElement('canvas');
-        await new Promise((resolve, reject) => {
-          window.QRCode.toCanvas(qrCanvas, verifyUrl, {
-            width: 420, margin: 1,
-            color: { dark: '#142b49', light: '#ffffff' }
-          }, error => error ? reject(error) : resolve());
-        });
-        qr = qrCanvas.toDataURL('image/png');
-      }
+      // Usa exactamente el helper compartido por PAS ID: QR local y sus alternativas,
+      // con la misma URL pública que las credenciales existentes.
+      const qrCanvas = document.createElement('canvas');
+      await renderPasQr(qrCanvas, verifyUrl, 420);
+      qr = qrCanvas.toDataURL('image/png');
       const photoPath = profile.photo_path;
       const photoUrl = photoPath && pasBackend?.publicProfilePhotoUrl ? pasBackend.publicProfilePhotoUrl(photoPath) : '';
       const issued = formatDate(member.issued);
