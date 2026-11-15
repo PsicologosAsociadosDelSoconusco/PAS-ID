@@ -21,6 +21,9 @@ let selectedMemberId = null;
 let selectedCredentialMemberId = null;
 let pendingRandomId = null;
 let toastTimer;
+let publicDirectoryRows = [];
+let publicDirectoryMap = null;
+let publicDirectoryMarkerLayer = null;
 
 async function renderPasQr(canvas, value, size) {
   if (!canvas || !value) return;
@@ -899,6 +902,7 @@ function openMemberDirectory() {
   document.getElementById('publicScreen').classList.remove('hidden');
   document.getElementById('backToLogin').textContent = '← Volver al portal';
   document.getElementById('publicDirectoryPanel').classList.remove('hidden');
+  document.querySelector('.verify-main')?.classList.add('directory-open');
   loadPublicDirectory();
 }
 async function refreshMemberNotificationDot() {
@@ -1002,6 +1006,11 @@ function showMemberPortal(profile) {
     profileOfficeLatitude: detail.office_latitude ?? '',
     profileOfficeLongitude: detail.office_longitude ?? '',
     profileModality: detail.service_modality || '',
+    profileServicePopulations: detail.service_populations || '',
+    profileApproaches: detail.approaches || '',
+    profileConsultationFee: detail.consultation_fee || '',
+    profilePublicFee: detail.public_fee === true,
+    profilePublicContact: detail.public_contact_enabled === true,
     profileDirectoryConsent: detail.public_directory_enabled === true,
     profileAbout: detail.about || ''
   };
@@ -1053,28 +1062,144 @@ async function loadMemberNotificationPanel() {
   } catch(error){target.innerHTML=`<p class="muted">${escapeHtml(error.message||'No fue posible cargar avisos.')}</p>`;}
 }
 
-async function loadPublicDirectory() {
-  const target=document.getElementById('publicDirectoryResults');
-  if(!target) return;
-  target.innerHTML='<p class="muted">Consultando directorio PAS…</p>';
-  try {
-    const rows=await pasBackend.listPublicDirectory({
-      search:document.getElementById('publicDirectorySearch')?.value.trim()||'',
-      city:document.getElementById('publicDirectoryCity')?.value.trim()||'',
-      specialty:document.getElementById('publicDirectorySpecialty')?.value.trim()||''
-    });
-    const modality=document.getElementById('publicDirectoryModality')?.value||'';
-    const filtered=modality?rows.filter(p=>(p.service_modality||'')===modality):rows;
-    const count=document.getElementById('publicDirectoryCount');
-    if(count) count.textContent=`${filtered.length} ${filtered.length===1?'profesional encontrado':'profesionales encontrados'} · Perfiles publicados voluntariamente`;
-    if(!filtered.length){target.innerHTML='<p class="muted">No hay perfiles públicos que coincidan con los filtros seleccionados.</p>';return;}
-    target.innerHTML=filtered.map(p=>{
-      const photo=p.photo_path?pasBackend.publicProfilePhotoUrl(p.photo_path):'';
-      const map=(p.office_latitude!=null&&p.office_longitude!=null)?`https://www.google.com/maps?q=${encodeURIComponent(p.office_latitude+','+p.office_longitude)}`:'';
-      return `<article class="public-professional-card">${photo?`<img src="${escapeHtml(photo)}" alt="" loading="lazy">`:`<div class="public-professional-avatar">${escapeHtml(initials(p.full_name))}</div>`}<div class="public-professional-content"><span class="eyebrow">${escapeHtml(p.member_type||'Integrante PAS')}</span><h3>${escapeHtml(p.full_name)}</h3>${p.specialty?`<b>${escapeHtml(p.specialty)}</b>`:''}<p>${escapeHtml([p.city,p.state].filter(Boolean).join(', '))}</p>${p.about?`<p>${escapeHtml(p.about)}</p>`:''}${p.service_modality?`<small>Atención: ${escapeHtml(p.service_modality)}</small>`:''}${map?`<a href="${map}" target="_blank" rel="noopener">Ver ubicación ↗</a>`:''}</div></article>`;
-    }).join('');
-  } catch(error){target.innerHTML=`<p class="muted">No se pudo cargar el directorio. ${escapeHtml(error.message||'')}</p>`;}
+function directoryHasLocation(profile) {
+  return Number.isFinite(Number(profile.office_latitude)) && Number.isFinite(Number(profile.office_longitude))
+    && profile.office_latitude !== null && profile.office_longitude !== null;
 }
+
+function directoryProfileCard(profile, index) {
+  const photo = profile.photo_path ? pasBackend.publicProfilePhotoUrl(profile.photo_path) : '';
+  const location = [profile.city, profile.state].filter(Boolean).join(', ');
+  const fee = profile.public_fee && profile.consultation_fee
+    ? `<span class="directory-fee">${escapeHtml(profile.consultation_fee)}</span>`
+    : '<span class="directory-fee directory-fee-private">Honorarios a consultar</span>';
+  const mapBadge = directoryHasLocation(profile) ? '<span class="directory-card-map">Consultorio en mapa</span>' : '';
+  const contactBadge = (profile.public_phone || profile.public_email) ? '<span class="directory-card-contact">Contacto disponible</span>' : '';
+  const rating = '<div class="directory-rating-empty" aria-label="Sin valoraciones verificadas"><span aria-hidden="true">☆☆☆☆☆</span><small>Sin valoraciones verificadas</small></div>';
+  return `<article class="public-professional-card directory-professional-card">
+    <div class="directory-card-topline"><span class="directory-member-type">${escapeHtml(profile.member_type || 'Integrante PAS')}</span><span class="directory-verified">✓ Integrante activo PAS</span></div>
+    <div class="directory-card-main">
+      ${photo ? `<img class="directory-card-photo" src="${escapeHtml(photo)}" alt="Fotografía de ${escapeHtml(profile.full_name)}" loading="lazy">` : `<div class="directory-card-photo directory-card-avatar">${escapeHtml(initials(profile.full_name))}</div>`}
+      <div class="directory-card-copy"><h4>${escapeHtml(profile.full_name)}</h4><p class="directory-card-specialty">${escapeHtml(profile.specialty || 'Profesional de la salud mental')}</p><p class="directory-card-location">${escapeHtml(location || 'Ubicación no publicada')}</p>${profile.service_modality ? `<span class="directory-modality">${escapeHtml(profile.service_modality)}</span>` : ''}</div>
+    </div>
+    <div class="directory-card-tags">${(profile.service_populations || '').split(',').map(x=>x.trim()).filter(Boolean).slice(0,3).map(x=>`<span>${escapeHtml(x)}</span>`).join('')}${mapBadge}${contactBadge}</div>
+    ${rating}
+    <div class="directory-card-bottom">${fee}<button type="button" class="btn btn-primary directory-profile-button" data-directory-profile="${index}">Ver perfil profesional <span>→</span></button></div>
+  </article>`;
+}
+
+function renderPublicDirectoryMap(rows) {
+  const mapElement = document.getElementById('publicDirectoryMap');
+  const caption = document.getElementById('publicDirectoryMapCaption');
+  if (!mapElement) return;
+  const located = rows.filter(directoryHasLocation);
+  if (!window.L) {
+    mapElement.innerHTML = '<p class="directory-map-unavailable">No fue posible cargar el mapa. Puedes consultar las ubicaciones desde cada perfil.</p>';
+    if (caption) caption.textContent = 'El mapa no está disponible en este momento.';
+    return;
+  }
+  if (!publicDirectoryMap) {
+    publicDirectoryMap = L.map(mapElement, { scrollWheelZoom: false }).setView([14.90, -92.26], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap'
+    }).addTo(publicDirectoryMap);
+    publicDirectoryMarkerLayer = L.layerGroup().addTo(publicDirectoryMap);
+  }
+  publicDirectoryMarkerLayer.clearLayers();
+  const bounds = [];
+  located.forEach((profile, index) => {
+    const point = [Number(profile.office_latitude), Number(profile.office_longitude)];
+    bounds.push(point);
+    const marker = L.marker(point).addTo(publicDirectoryMarkerLayer);
+    marker.bindPopup(`<strong>${escapeHtml(profile.full_name)}</strong><br>${escapeHtml(profile.specialty || 'Profesional PAS')}<br><button type="button" class="directory-popup-open" data-map-profile="${publicDirectoryRows.indexOf(profile)}">Ver perfil</button>`);
+    marker.on('popupopen', () => {
+      const button = mapElement.querySelector(`[data-map-profile="${publicDirectoryRows.indexOf(profile)}"]`);
+      button?.addEventListener('click', () => openPublicProfessionalProfile(profile.member_id), { once: true });
+    });
+  });
+  if (bounds.length > 1) publicDirectoryMap.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
+  else if (bounds.length === 1) publicDirectoryMap.setView(bounds[0], 14);
+  else publicDirectoryMap.setView([14.90, -92.26], 10);
+  window.setTimeout(() => publicDirectoryMap?.invalidateSize(), 100);
+  if (caption) caption.textContent = located.length
+    ? `${located.length} ${located.length === 1 ? 'consultorio con ubicación publicada' : 'consultorios con ubicación publicada'}. Solo se muestran ubicaciones autorizadas.`
+    : 'Por ahora no hay consultorios con coordenadas publicadas. Los profesionales sin ubicación también aparecen en la lista.';
+}
+
+function renderPublicDirectory() {
+  const target = document.getElementById('publicDirectoryResults');
+  if (!target) return;
+  const search = (document.getElementById('publicDirectorySearch')?.value || '').trim().toLocaleLowerCase('es-MX');
+  const city = (document.getElementById('publicDirectoryCity')?.value || '').trim().toLocaleLowerCase('es-MX');
+  const specialty = (document.getElementById('publicDirectorySpecialty')?.value || '').trim().toLocaleLowerCase('es-MX');
+  const modality = document.getElementById('publicDirectoryModality')?.value || '';
+  const population = (document.getElementById('publicDirectoryPopulation')?.value || '').toLocaleLowerCase('es-MX');
+  const feeFilter = document.getElementById('publicDirectoryFee')?.value || '';
+  const contactFilter = document.getElementById('publicDirectoryContact')?.value || '';
+  const normalized = value => String(value || '').toLocaleLowerCase('es-MX');
+  const filtered = publicDirectoryRows.filter(profile => {
+    const searchable = [profile.full_name, profile.specialty, profile.about, profile.service_populations, profile.approaches].map(normalized).join(' ');
+    if (search && !searchable.includes(search)) return false;
+    if (city && !normalized(profile.city).includes(city)) return false;
+    if (specialty && !normalized(profile.specialty).includes(specialty)) return false;
+    if (modality && normalized(profile.service_modality) !== normalized(modality)) return false;
+    if (population && !normalized(profile.service_populations).includes(population)) return false;
+    if (feeFilter === 'published' && !(profile.public_fee && profile.consultation_fee)) return false;
+    if (feeFilter === 'not_published' && profile.public_fee && profile.consultation_fee) return false;
+    if (contactFilter === 'yes' && !(profile.public_phone || profile.public_email)) return false;
+    return true;
+  });
+  const count = document.getElementById('publicDirectoryCount');
+  if (count) count.textContent = `${filtered.length} ${filtered.length === 1 ? 'profesional encontrado' : 'profesionales encontrados'} · Afiliados y colaboradores activos de PAS`;
+  target.innerHTML = filtered.length
+    ? filtered.map(profile => directoryProfileCard(profile, publicDirectoryRows.indexOf(profile))).join('')
+    : '<div class="directory-empty-state"><strong>No encontramos profesionales con esos filtros.</strong><p>Prueba cambiar el municipio, la modalidad o el área de atención.</p></div>';
+  renderPublicDirectoryMap(filtered);
+}
+
+function openPublicProfessionalProfile(memberId) {
+  const profile = publicDirectoryRows.find(row => row.member_id === memberId);
+  if (!profile) return;
+  const target = document.getElementById('publicProfessionalDetailContent');
+  const modal = document.getElementById('publicProfessionalDetail');
+  if (!target || !modal) return;
+  const photo = profile.photo_path ? pasBackend.publicProfilePhotoUrl(profile.photo_path) : '';
+  const location = [profile.city, profile.state].filter(Boolean).join(', ');
+  const hasMap = directoryHasLocation(profile);
+  const mapUrl = hasMap ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(profile.office_latitude + ',' + profile.office_longitude)}` : '';
+  const fee = profile.public_fee && profile.consultation_fee
+    ? `<div class="public-profile-detail-item"><small>HONORARIOS PUBLICADOS</small><strong>${escapeHtml(profile.consultation_fee)}</strong></div>`
+    : '<div class="public-profile-detail-item"><small>HONORARIOS</small><strong>Consultar directamente con el profesional</strong></div>';
+  target.innerHTML = `<div class="public-profile-hero">
+      ${photo ? `<img src="${escapeHtml(photo)}" alt="Fotografía de ${escapeHtml(profile.full_name)}">` : `<div class="public-profile-avatar">${escapeHtml(initials(profile.full_name))}</div>`}
+      <div><span class="directory-verified">✓ Integrante activo PAS</span><h2 id="publicProfessionalDetailTitle">${escapeHtml(profile.full_name)}</h2><p>${escapeHtml(profile.specialty || 'Profesional de la salud mental')}</p><span class="directory-member-type">${escapeHtml(profile.member_type || 'Integrante PAS')}</span></div>
+    </div>
+    <div class="public-profile-rating-block"><span aria-hidden="true">☆☆☆☆☆</span><div><strong>Valoraciones verificadas</strong><small>Aún no hay valoraciones disponibles. Próximamente se habilitarán únicamente después de una atención confirmada.</small></div></div>
+    <div class="public-profile-detail-grid">${profile.professional_license ? `<div class="public-profile-detail-item"><small>CÉDULA PROFESIONAL</small><strong>${escapeHtml(profile.professional_license)}</strong></div>` : ''}<div class="public-profile-detail-item"><small>UBICACIÓN</small><strong>${escapeHtml(location || 'No publicada')}</strong></div><div class="public-profile-detail-item"><small>MODALIDAD</small><strong>${escapeHtml(profile.service_modality || 'Consultar con el profesional')}</strong></div>${fee}</div>
+    ${profile.about ? `<section class="public-profile-section"><h3>Sobre el profesional</h3><p>${escapeHtml(profile.about)}</p></section>` : ''}
+    ${profile.service_populations ? `<section class="public-profile-section"><h3>Población que atiende</h3><div class="public-profile-chips">${profile.service_populations.split(',').map(x=>x.trim()).filter(Boolean).map(x=>`<span>${escapeHtml(x)}</span>`).join('')}</div></section>` : ''}
+    ${profile.approaches ? `<section class="public-profile-section"><h3>Enfoques de trabajo</h3><p>${escapeHtml(profile.approaches)}</p></section>` : ''}
+    ${(profile.public_phone || profile.public_email) ? `<section class="public-profile-section"><h3>Contacto profesional</h3><div class="public-profile-contact-actions">${profile.public_phone ? `<a class="btn btn-primary" href="tel:${escapeHtml(profile.public_phone.replace(/[^+0-9]/g,''))}">Llamar al profesional</a>` : ''}${profile.public_phone ? `<a class="btn btn-outline" href="https://wa.me/${escapeHtml(profile.public_phone.replace(/[^0-9]/g,''))}" target="_blank" rel="noopener">WhatsApp ↗</a>` : ''}${profile.public_email ? `<a class="btn btn-outline" href="mailto:${escapeHtml(profile.public_email)}">Enviar correo</a>` : ''}</div></section>` : ''}
+    ${hasMap ? `<section class="public-profile-section"><h3>Ubicación del consultorio</h3><p>${escapeHtml(profile.office_address || location || '')}</p><a class="btn btn-primary" href="${mapUrl}" target="_blank" rel="noopener">Cómo llegar en Google Maps ↗</a></section>` : '<p class="public-profile-private-note">La ubicación del consultorio no está publicada.</p>'}
+    <p class="public-profile-disclaimer">La información corresponde al perfil profesional autorizado por su integrante. El directorio facilita la búsqueda de atención y no sustituye una valoración profesional.</p>`;
+  modal.classList.remove('hidden');
+  document.body.classList.add('public-profile-open');
+}
+
+async function loadPublicDirectory() {
+  const target = document.getElementById('publicDirectoryResults');
+  if (!target) return;
+  target.innerHTML = '<p class="muted">Consultando profesionales PAS…</p>';
+  try {
+    publicDirectoryRows = await pasBackend.listPublicDirectory({ search: '', city: '', specialty: '' });
+    renderPublicDirectory();
+  } catch (error) {
+    target.innerHTML = `<p class="muted">No se pudo cargar el directorio. ${escapeHtml(error.message || '')}</p>`;
+    const caption = document.getElementById('publicDirectoryMapCaption');
+    if (caption) caption.textContent = 'No fue posible consultar las ubicaciones.';
+  }
+}
+
 async function loadNotificationPanel() {
   const target=document.getElementById('notificationList');
   if(!target) return;
@@ -1095,6 +1220,7 @@ async function loadNotificationPanel() {
 
 function openPublicScreen() {
   returnToMemberPortal = false;
+  document.querySelector('.verify-main')?.classList.remove('directory-open');
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('memberPortalScreen').classList.add('hidden');
   document.getElementById('appShell').classList.add('hidden');
@@ -1200,7 +1326,7 @@ document.getElementById('togglePassword').addEventListener('click', () => {
   input.type = input.type === 'password' ? 'text' : 'password';
 });
 document.getElementById('publicAccess').addEventListener('click', openPublicScreen);
-document.getElementById('loginDirectoryAccess')?.addEventListener('click', () => { returnToMemberPortal=false; openPublicScreen(); document.getElementById('publicDirectoryPanel').classList.remove('hidden'); loadPublicDirectory(); });
+document.getElementById('loginDirectoryAccess')?.addEventListener('click', () => { returnToMemberPortal=false; openPublicScreen(); document.getElementById('publicDirectoryPanel').classList.remove('hidden'); document.querySelector('.verify-main')?.classList.add('directory-open'); loadPublicDirectory(); });
 document.getElementById('backToLogin').addEventListener('click', () => {
   document.getElementById('publicScreen').classList.add('hidden');
   if (returnToMemberPortal && currentMemberProfile) {
@@ -1240,6 +1366,11 @@ document.getElementById('profileChangeForm').addEventListener('submit', async ev
     office_latitude: document.getElementById('profileOfficeLatitude').value.trim(),
     office_longitude: document.getElementById('profileOfficeLongitude').value.trim(),
     service_modality: document.getElementById('profileModality').value,
+    service_populations: document.getElementById('profileServicePopulations').value.trim(),
+    approaches: document.getElementById('profileApproaches').value.trim(),
+    consultation_fee: document.getElementById('profileConsultationFee').value.trim(),
+    public_fee: document.getElementById('profilePublicFee').checked,
+    public_contact_enabled: document.getElementById('profilePublicContact').checked,
     public_directory_enabled: document.getElementById('profileDirectoryConsent').checked,
     about: document.getElementById('profileAbout').value.trim()
   };
@@ -1483,14 +1614,29 @@ document.getElementById('copyMemberCredential').addEventListener('click', async 
 
 document.getElementById('openPublicDirectory')?.addEventListener('click',()=>{
   document.getElementById('publicDirectoryPanel').classList.remove('hidden');
+  document.querySelector('.verify-main')?.classList.add('directory-open');
   loadPublicDirectory();
 });
 let publicDirectorySearchTimer;
-function schedulePublicDirectorySearch(){window.clearTimeout(publicDirectorySearchTimer);publicDirectorySearchTimer=window.setTimeout(loadPublicDirectory,260);}
-document.getElementById('publicDirectorySearch')?.addEventListener('input',schedulePublicDirectorySearch);
-document.getElementById('publicDirectoryCity')?.addEventListener('input',schedulePublicDirectorySearch);
-document.getElementById('publicDirectorySpecialty')?.addEventListener('input',schedulePublicDirectorySearch);
-document.getElementById('publicDirectoryModality')?.addEventListener('change',loadPublicDirectory);
+function schedulePublicDirectorySearch(){window.clearTimeout(publicDirectorySearchTimer);publicDirectorySearchTimer=window.setTimeout(renderPublicDirectory,140);}
+['publicDirectorySearch','publicDirectoryCity','publicDirectorySpecialty'].forEach(id=>document.getElementById(id)?.addEventListener('input',schedulePublicDirectorySearch));
+['publicDirectoryModality','publicDirectoryPopulation','publicDirectoryFee','publicDirectoryContact'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderPublicDirectory));
+document.getElementById('clearPublicDirectoryFilters')?.addEventListener('click',()=>{
+  ['publicDirectorySearch','publicDirectoryCity','publicDirectorySpecialty'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['publicDirectoryModality','publicDirectoryPopulation','publicDirectoryFee','publicDirectoryContact'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderPublicDirectory();
+});
+document.getElementById('publicDirectoryResults')?.addEventListener('click',event=>{
+  const button=event.target.closest('[data-directory-profile]');
+  if(button){const profile=publicDirectoryRows[Number(button.dataset.directoryProfile)];if(profile)openPublicProfessionalProfile(profile.member_id);}
+});
+document.getElementById('closePublicProfessionalDetail')?.addEventListener('click',()=>{
+  document.getElementById('publicProfessionalDetail')?.classList.add('hidden');document.body.classList.remove('public-profile-open');
+});
+document.getElementById('publicProfessionalDetail')?.addEventListener('click',event=>{
+  if(event.target.id==='publicProfessionalDetail'){event.currentTarget.classList.add('hidden');document.body.classList.remove('public-profile-open');}
+});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){document.getElementById('publicProfessionalDetail')?.classList.add('hidden');document.body.classList.remove('public-profile-open');}});
 document.getElementById('notificationBell')?.addEventListener('click',()=>{
   document.getElementById('notificationPanel').classList.toggle('hidden');
   loadNotificationPanel();
