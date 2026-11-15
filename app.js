@@ -40,7 +40,7 @@ async function renderPasQr(canvas, value, size) {
         width: size, margin: 1,
         color: { dark: '#173655', light: '#ffffff' }
       });
-      return;
+      return true;
     } catch (error) {
       console.warn('Falló la biblioteca QR local; se intentará el generador alternativo.', error);
     }
@@ -65,7 +65,7 @@ async function renderPasQr(canvas, value, size) {
       const image = await makeImage(url);
       ctx.clearRect(0, 0, size, size);
       ctx.drawImage(image, 0, 0, size, size);
-      return;
+      return true;
     } catch (error) {
       console.warn('Un proveedor QR alternativo no respondió; se probará el siguiente.', error);
     }
@@ -77,6 +77,7 @@ async function renderPasQr(canvas, value, size) {
   ctx.font = '11px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('QR no disponible', size / 2, size / 2);
+  return false;
 }
 
 
@@ -2494,8 +2495,9 @@ async function generateProfessionalReviewQr() {
     const invite=await pasBackend.createMyProfessionalReviewInvite();
     if(!invite?.token) throw new Error('El servidor no devolvió una invitación válida.');
     activeProfessionalReviewUrl=`${location.origin}${location.pathname}?review=${encodeURIComponent(invite.token)}`;
-    if(!window.QRCode?.toCanvas) throw new Error('No se pudo cargar el generador de QR. Recarga la página e inténtalo de nuevo.');
-    await QRCode.toCanvas(document.getElementById('professionalReviewQrCanvas'),activeProfessionalReviewUrl,{width:260,margin:2,errorCorrectionLevel:'H',color:{dark:'#173452',light:'#ffffff'}});
+    const qrCanvas=document.getElementById('professionalReviewQrCanvas');
+    const qrRendered=await renderPasQr(qrCanvas,activeProfessionalReviewUrl,260);
+    if(!qrRendered) throw new Error('No se pudo dibujar el QR. Comprueba tu conexión e inténtalo nuevamente.');
     document.getElementById('professionalReviewQrExpiry').textContent=`Válido hasta: ${new Date(invite.expires_at).toLocaleDateString('es-MX')}`;
     result.classList.remove('hidden'); if(status) status.textContent='Invitación generada. Este QR solo puede utilizarse una vez.';
   } catch(error) { if(status) status.textContent=error.message||'No fue posible generar el QR.'; }

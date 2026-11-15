@@ -427,9 +427,9 @@
           console.error('No fue posible cargar el SDK de Supabase desde los CDN disponibles.', error);
         }
         try {
-          await loadScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js');
+          await loadScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js');
         } catch (_) {
-          try { await loadScript('https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js'); }
+          try { await loadScript('https://unpkg.com/qrcode@1.5.1/build/qrcode.min.js'); }
           catch (error) { console.warn('La biblioteca QR no está disponible; se podrá usar el mecanismo alternativo.', error); }
         }
         await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
