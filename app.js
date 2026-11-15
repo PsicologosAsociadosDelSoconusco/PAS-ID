@@ -209,6 +209,73 @@ function drawQrFallback(canvas, value, size) {
   loadNext();
 }
 
+function printEligibleMembers() {
+  return members.filter(member => effectiveStatus(member) === 'Activo' && (member.publicIdentifier || member.id));
+}
+function renderPrintMemberSelection() {
+  const target = document.getElementById('printMemberSelection');
+  if (!target) return;
+  const query = normalize(document.getElementById('printMemberSearch')?.value || '');
+  const eligible = printEligibleMembers().filter(member => !query || normalize(`${member.name} ${member.id}`).includes(query));
+  const selected = new Set([...document.querySelectorAll('[data-print-member]:checked')].map(input => input.value));
+  target.innerHTML = eligible.length ? eligible.map(member => `
+    <label class="print-member-option"><input type="checkbox" data-print-member value="${escapeHtml(member.id)}" ${selected.has(member.id) ? 'checked' : ''}><span class="print-member-avatar">${escapeHtml(initials(member.name))}</span><span class="print-member-info"><b>${escapeHtml(member.name)}</b><small>${escapeHtml(member.id)} · ${escapeHtml(member.type || 'Miembro PAS')}</small></span><span class="print-member-status">ACTIVA</span></label>`).join('') : '<p class="muted">No hay miembros activos que coincidan con la búsqueda.</p>';
+  updatePrintSelectionSummary();
+}
+function updatePrintSelectionSummary() {
+  const count = document.querySelectorAll('[data-print-member]:checked').length;
+  const label = document.getElementById('printSelectedCount');
+  const button = document.getElementById('generateCredentialPrint');
+  if (label) label.textContent = `${count} seleccionados`;
+  if (button) button.disabled = count === 0;
+  const summary = document.getElementById('printLayoutSummary');
+  if (summary) summary.textContent = count ? `${count} credencial(es) · ${Math.ceil(count / 3)} hoja(s) tamaño carta · Hasta 3 credenciales por hoja.` : 'Formato carta · Credenciales verticales CR80 · Anverso y reverso lado a lado.';
+}
+function escapePrint(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+async function generateCredentialPrintPdf() {
+  if (signedInRole !== 'directiva') { showToast('Esta función es exclusiva de Directiva.'); return; }
+  const ids = [...document.querySelectorAll('[data-print-member]:checked')].map(input => input.value);
+  const selected = ids.map(id => members.find(member => member.id === id)).filter(member => member && effectiveStatus(member) === 'Activo');
+  if (!selected.length) { showToast('Selecciona al menos un miembro con credencial activa.'); return; }
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) { showToast('Permite las ventanas emergentes para generar el PDF.'); return; }
+  const button = document.getElementById('generateCredentialPrint');
+  button.disabled = true; button.textContent = 'Preparando credenciales…';
+  try {
+    const cards = [];
+    for (const member of selected) {
+      const profile = member.profile || {};
+      const identifier = member.publicIdentifier || member.id;
+      const verifyUrl = buildVerificationUrl(identifier);
+      let qr = '';
+      if (window.QRCode?.toDataURL) qr = await window.QRCode.toDataURL(verifyUrl, {width:420, margin:2, color:{dark:'#142b49',light:'#ffffff'}});
+      const photoPath = profile.photo_path;
+      const photoUrl = photoPath && pasBackend?.publicProfilePhotoUrl ? pasBackend.publicProfilePhotoUrl(photoPath) : '';
+      const issued = formatDate(member.issued);
+      const expires = formatDate(member.expires);
+      const name = escapePrint(member.name).toUpperCase();
+      const type = escapePrint(member.type || 'Miembro PAS');
+      const photo = photoUrl ? `<img class="member-photo" src="${escapePrint(photoUrl)}" alt="Fotografía de ${name}">` : `<div class="photo-placeholder">${escapePrint(initials(member.name))}</div>`;
+      cards.push(`<article class="credential-pair"><section class="credential-face credential-front"><div class="stripe stripe-left"></div><img class="pas-logo" src="${new URL('assets/pas-logo.png', location.href).href}" alt="PAS"><div class="photo-frame">${photo}</div><h2>${name}</h2><div class="name-rule"></div><h3>Miembro: ${type}</h3><div class="folio">${escapePrint(identifier)}</div><div class="dates"><span>Expedición: <b>${escapePrint(issued)}</b></span><span>Vigencia: <b>${escapePrint(expires)}</b></span></div></section><section class="credential-face credential-back"><div class="stripe stripe-right"></div><img class="pas-logo" src="${new URL('assets/pas-logo.png', location.href).href}" alt="PAS"><h2>TÉRMINOS Y CONDICIONES</h2><p>Uso exclusivo: Esta credencial es personal e intransferible. Solo puede ser utilizada por el afiliado registrado en el grupo PAS. Identificación: Sirve como medio de identificación dentro de actividades, eventos y espacios vinculados a PAS. Validez: Su vigencia está sujeta a la permanencia activa del miembro. Responsabilidad: El portador debe conservarla en buen estado y reportar su pérdida o robo. Restricciones: La falsificación o alteración anula su validez y puede derivar en sanciones internas. Propiedad: La credencial es propiedad de PAS.</p><h3>CONTACTO</h3><div class="contact-email">membresiaspas@gmail.com</div><h3>VERIFICACIÓN</h3><div class="verify-caption">Escanea el código QR para consultar la vigencia</div>${qr ? `<img class="print-qr" src="${qr}" alt="QR de verificación">` : `<div class="qr-fallback">${escapePrint(verifyUrl)}</div>`}</section></article>`);
+    }
+    const pages = [];
+    for (let i=0;i<cards.length;i+=3) pages.push(`<div class="print-page">${cards.slice(i,i+3).join('')}</div>`);
+    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Credenciales PAS · Impresión</title><style>
+      @page{size:letter portrait;margin:8mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#142b49;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:100%;height:263.4mm;display:flex;flex-direction:column;justify-content:space-between;align-items:center;page-break-after:always;break-after:page}.print-page:last-child{page-break-after:auto;break-after:auto}.credential-pair{width:107.96mm;height:85.6mm;display:flex;flex:0 0 85.6mm;gap:0;position:relative;page-break-inside:avoid;break-inside:avoid}.credential-face{width:53.98mm;height:85.6mm;position:relative;overflow:hidden;border:.25mm solid #d4d9df;background:#fff;text-align:center;padding:4mm 3mm 3mm}.pas-logo{width:31mm;height:19mm;object-fit:contain;margin:0 auto 1mm;display:block}.credential-front{background:#fff}.stripe{position:absolute;top:0;bottom:0;width:9mm;z-index:0}.stripe-left{left:0;background:linear-gradient(160deg,#173b70 0 62%,#e0a626 62% 100%);clip-path:polygon(0 0,100% 0,42% 57%,100% 70%,0 100%)}.credential-front>*:not(.stripe),.credential-back>*:not(.stripe){position:relative;z-index:1}.photo-frame{width:28mm;height:31mm;margin:0 auto 2mm;border:1.5mm solid #142d59;border-radius:3mm;overflow:hidden;background:#eef1f5;display:flex;align-items:center;justify-content:center}.member-photo{width:100%;height:100%;object-fit:cover}.photo-placeholder{font-size:18pt;font-weight:bold;color:#173b70}.credential-front h2{font-size:7.2pt;line-height:1.15;margin:1mm 0 1.5mm;font-weight:800;overflow-wrap:anywhere}.name-rule{height:1mm;background:#142d59;width:70%;margin:0 auto 1.5mm;border-radius:2mm}.credential-front h3{font-size:8pt;margin:0 0 2mm}.folio{background:#5b8b3e;color:white;font-weight:bold;letter-spacing:2mm;font-size:11pt;padding:3mm 1mm;border-radius:3mm;margin:0 2mm 2mm}.dates{display:flex;flex-direction:column;gap:1mm;font-size:7.3pt;text-align:left;padding-left:9mm}.credential-back{padding:4mm 4mm 3mm}.stripe-right{right:0;background:linear-gradient(205deg,#e0a626 0 24%,#173b70 24% 100%);clip-path:polygon(100% 0,100% 100%,0 80%,35% 48%,0 0)}.credential-back .pas-logo{width:26mm;height:16mm;margin-bottom:1mm}.credential-back h2{font-size:8pt;margin:0 0 1.5mm}.credential-back p{font-size:5.25pt;line-height:1.25;text-align:justify;margin:0 1mm 2mm}.credential-back h3{font-size:8pt;margin:1.2mm 0 .5mm}.contact-email{font-size:6.5pt}.verify-caption{font-size:5.6pt;margin-bottom:1mm}.print-qr{width:24mm;height:24mm;object-fit:contain;border:1mm solid #5b8b3e;border-radius:2mm;padding:1mm}.qr-fallback{font-size:4pt;overflow-wrap:anywhere}.print-page:after{content:'';position:absolute}
+      @media screen{body{background:#e9edf2;padding:12mm}.print-page{background:white;box-shadow:0 2mm 8mm #0002;margin:0 auto 10mm;padding:0}.print-page:last-child{margin-bottom:0}}
+      @media print{body{background:white}.print-page{height:263.4mm}.credential-pair{margin:0}}
+    </style></head><body>${pages.join('')}<script>window.addEventListener('load',()=>{const imgs=[...document.images];Promise.all(imgs.map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r}))).then(()=>setTimeout(()=>window.print(),350));});</script></body></html>`;
+    printWindow.document.open(); printWindow.document.write(html); printWindow.document.close();
+    showToast(`${selected.length} credencial(es) preparadas. Guarda el documento como PDF.`);
+  } catch (error) {
+    printWindow.close(); console.error(error); showToast(`No fue posible generar el PDF: ${error.message}`);
+  } finally {
+    button.disabled = false; button.textContent = 'Generar PDF de impresión →';
+  }
+}
+
 function renderCredentials() {
   const list = document.getElementById('credentialList');
   list.innerHTML = members.map(member => `
@@ -295,6 +362,7 @@ function showView(viewName) {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarScrim').classList.remove('show');
   if (viewName === 'members') loadProfileRequests();
+  if (viewName === 'credentials') renderPrintMemberSelection();
   if (viewName === 'events') loadEventsModule();
   if (viewName === 'requests') loadInstitutionalRequestsAdmin();
   if (viewName === 'certificates') loadCertificatesModule();
@@ -811,6 +879,13 @@ document.getElementById('copyCredentialPreviewUrl').addEventListener('click', as
   try { await navigator.clipboard.writeText(url); showToast('Enlace de verificación copiado para QR/NFC.'); }
   catch (_) { showToast('No se pudo copiar el enlace.'); }
 });
+document.getElementById('printMemberSearch')?.addEventListener('input', renderPrintMemberSelection);
+document.getElementById('printMemberSelection')?.addEventListener('change', updatePrintSelectionSummary);
+document.getElementById('printSelectAll')?.addEventListener('change', event => {
+  document.querySelectorAll('[data-print-member]').forEach(input => { input.checked = event.target.checked; });
+  updatePrintSelectionSummary();
+});
+document.getElementById('generateCredentialPrint')?.addEventListener('click', generateCredentialPrintPdf);
 document.getElementById('memberSearch').addEventListener('input', renderMembers);
 document.getElementById('statusFilter').addEventListener('change', renderMembers);
 document.getElementById('memberForm').addEventListener('submit', async event => {

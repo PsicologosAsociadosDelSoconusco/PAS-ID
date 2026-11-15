@@ -66,7 +66,7 @@
       if (!configured) throw new Error('Supabase no está configurado.');
       const rows = await unwrap(
         client.from('members')
-          .select('id,legacy_folio,full_name,member_type,membership_status,issued_on,expires_on,is_historical,auth_user_id,member_profiles(contact_email,phone,professional_license,specialty,city,state,about),credentials(id,public_identifier,credential_status,issued_at,expires_on,is_historical)')
+          .select('id,legacy_folio,full_name,member_type,membership_status,issued_on,expires_on,is_historical,auth_user_id,member_profiles(contact_email,phone,professional_license,specialty,city,state,about,photo_path),credentials(id,public_identifier,credential_status,issued_at,expires_on,is_historical)')
           .order('full_name', { ascending: true }),
         'directorio de miembros'
       );
