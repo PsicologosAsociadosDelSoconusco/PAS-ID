@@ -1075,7 +1075,7 @@ function directoryProfileCard(profile, index) {
     : '<span class="directory-fee directory-fee-private">Honorarios a consultar</span>';
   const mapBadge = directoryHasLocation(profile) ? '<span class="directory-card-map">Consultorio en mapa</span>' : '';
   const contactBadge = (profile.public_phone || profile.public_email) ? '<span class="directory-card-contact">Contacto disponible</span>' : '';
-  const rating = '<div class="directory-rating-empty" aria-label="Sin valoraciones verificadas"><span aria-hidden="true">☆☆☆☆☆</span><small>Sin valoraciones verificadas</small></div>';
+  const rating = Number(profile.review_count)>0 ? `<div class="directory-rating-empty directory-rating-live" aria-label="${Number(profile.average_rating).toFixed(1)} de 5 estrellas"><span aria-hidden="true">${'★'.repeat(Math.round(Number(profile.average_rating)))}${'☆'.repeat(5-Math.round(Number(profile.average_rating)))}</span><small>${Number(profile.average_rating).toFixed(1)} · ${Number(profile.review_count)} ${Number(profile.review_count)===1?'valoración':'valoraciones'}</small></div>` : '<div class="directory-rating-empty" aria-label="Sin valoraciones verificadas"><span aria-hidden="true">☆☆☆☆☆</span><small>Aún sin valoraciones publicadas</small></div>';
   return `<article class="public-professional-card directory-professional-card">
     <div class="directory-card-topline"><span class="directory-member-type">${escapeHtml(profile.member_type || 'Integrante PAS')}</span><span class="directory-verified">✓ Integrante activo PAS</span></div>
     <div class="directory-card-main">
@@ -1157,7 +1157,7 @@ function renderPublicDirectory() {
   renderPublicDirectoryMap(filtered);
 }
 
-function openPublicProfessionalProfile(memberId) {
+async function openPublicProfessionalProfile(memberId) {
   const profile = publicDirectoryRows.find(row => row.member_id === memberId);
   if (!profile) return;
   const target = document.getElementById('publicProfessionalDetailContent');
@@ -1165,6 +1165,10 @@ function openPublicProfessionalProfile(memberId) {
   if (!target || !modal) return;
   const photo = profile.photo_path ? pasBackend.publicProfilePhotoUrl(profile.photo_path) : '';
   const location = [profile.city, profile.state].filter(Boolean).join(', ');
+  let publicRating={average_rating:profile.average_rating||0,total_reviews:profile.review_count||0};
+  try { publicRating=await pasBackend.getPublicProfessionalRating(memberId)||publicRating; } catch(_) {}
+  const ratingCount=Number(publicRating.total_reviews)||0; const ratingAverage=Number(publicRating.average_rating)||0;
+  const ratingMarkup=ratingCount?`<span aria-hidden="true">${'★'.repeat(Math.round(ratingAverage))}${'☆'.repeat(5-Math.round(ratingAverage))}</span><div><strong>${ratingAverage.toFixed(1)} / 5 · ${ratingCount} ${ratingCount===1?'valoración':'valoraciones'}</strong><small>Valoraciones publicadas después de revisión de Directiva PAS.</small></div>`:`<span aria-hidden="true">☆☆☆☆☆</span><div><strong>Aún sin valoraciones publicadas</strong><small>Las valoraciones se mostrarán únicamente después de ser revisadas y aprobadas por Directiva PAS.</small></div>`;
   const hasMap = directoryHasLocation(profile);
   const mapUrl = hasMap ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(profile.office_latitude + ',' + profile.office_longitude)}` : '';
   const fee = profile.public_fee && profile.consultation_fee
@@ -1174,7 +1178,7 @@ function openPublicProfessionalProfile(memberId) {
       ${photo ? `<img src="${escapeHtml(photo)}" alt="Fotografía de ${escapeHtml(profile.full_name)}">` : `<div class="public-profile-avatar">${escapeHtml(initials(profile.full_name))}</div>`}
       <div><span class="directory-verified">✓ Integrante activo PAS</span><h2 id="publicProfessionalDetailTitle">${escapeHtml(profile.full_name)}</h2><p>${escapeHtml(profile.specialty || 'Profesional de la salud mental')}</p><span class="directory-member-type">${escapeHtml(profile.member_type || 'Integrante PAS')}</span></div>
     </div>
-    <div class="public-profile-rating-block"><span aria-hidden="true">☆☆☆☆☆</span><div><strong>Valoraciones verificadas</strong><small>Aún no hay valoraciones disponibles. Próximamente se habilitarán únicamente después de una atención confirmada.</small></div></div>
+    <div class="public-profile-rating-block">${ratingMarkup}</div>
     <div class="public-profile-detail-grid">${profile.professional_license ? `<div class="public-profile-detail-item"><small>CÉDULA PROFESIONAL</small><strong>${escapeHtml(profile.professional_license)}</strong></div>` : ''}<div class="public-profile-detail-item"><small>UBICACIÓN</small><strong>${escapeHtml(location || 'No publicada')}</strong></div><div class="public-profile-detail-item"><small>MODALIDAD</small><strong>${escapeHtml(profile.service_modality || 'Consultar con el profesional')}</strong></div>${fee}</div>
     ${profile.about ? `<section class="public-profile-section"><h3>Sobre el profesional</h3><p>${escapeHtml(profile.about)}</p></section>` : ''}
     ${profile.service_populations ? `<section class="public-profile-section"><h3>Población que atiende</h3><div class="public-profile-chips">${profile.service_populations.split(',').map(x=>x.trim()).filter(Boolean).map(x=>`<span>${escapeHtml(x)}</span>`).join('')}</div></section>` : ''}
@@ -1192,6 +1196,7 @@ async function loadPublicDirectory() {
   target.innerHTML = '<p class="muted">Consultando profesionales PAS…</p>';
   try {
     publicDirectoryRows = await pasBackend.listPublicDirectory({ search: '', city: '', specialty: '' });
+    await Promise.all(publicDirectoryRows.map(async profile => { try { const rating=await pasBackend.getPublicProfessionalRating(profile.member_id); profile.average_rating=Number(rating?.average_rating)||0; profile.review_count=Number(rating?.total_reviews)||0; } catch(_) { profile.average_rating=0; profile.review_count=0; } }));
     renderPublicDirectory();
   } catch (error) {
     target.innerHTML = `<p class="muted">No se pudo cargar el directorio. ${escapeHtml(error.message || '')}</p>`;
@@ -2471,3 +2476,96 @@ document.getElementById('certificatesList')?.addEventListener('click', async eve
     catch (error) { showToast(error.message || 'No se pudo revocar.'); }
   }
 });
+
+
+// PAS ID · Etapa 3: interfaz de invitaciones QR y moderación de valoraciones.
+let activeProfessionalReviewUrl = '';
+function setReviewMessage(id, message, isError=false) {
+  const el=document.getElementById(id); if(!el) return;
+  el.textContent=message; el.classList.toggle('is-error',Boolean(isError));
+}
+async function generateProfessionalReviewQr() {
+  const button=document.getElementById('generateProfessionalReviewQr');
+  const status=document.getElementById('reviewQrStatus');
+  const result=document.getElementById('professionalReviewQrResult');
+  if(!button || !currentMemberProfile) return;
+  button.disabled=true; if(status) status.textContent='Generando invitación segura…';
+  try {
+    const invite=await pasBackend.createMyProfessionalReviewInvite();
+    if(!invite?.token) throw new Error('El servidor no devolvió una invitación válida.');
+    activeProfessionalReviewUrl=`${location.origin}${location.pathname}?review=${encodeURIComponent(invite.token)}`;
+    if(!window.QRCode?.toCanvas) throw new Error('No se pudo cargar el generador de QR. Recarga la página e inténtalo de nuevo.');
+    await QRCode.toCanvas(document.getElementById('professionalReviewQrCanvas'),activeProfessionalReviewUrl,{width:260,margin:2,errorCorrectionLevel:'H',color:{dark:'#173452',light:'#ffffff'}});
+    document.getElementById('professionalReviewQrExpiry').textContent=`Válido hasta: ${new Date(invite.expires_at).toLocaleDateString('es-MX')}`;
+    result.classList.remove('hidden'); if(status) status.textContent='Invitación generada. Este QR solo puede utilizarse una vez.';
+  } catch(error) { if(status) status.textContent=error.message||'No fue posible generar el QR.'; }
+  finally { button.disabled=false; }
+}
+document.getElementById('generateProfessionalReviewQr')?.addEventListener('click',generateProfessionalReviewQr);
+document.getElementById('downloadProfessionalReviewQr')?.addEventListener('click',()=>{
+  const canvas=document.getElementById('professionalReviewQrCanvas'); if(!canvas) return;
+  const link=document.createElement('a'); link.download='PAS-valoracion-profesional-QR.png'; link.href=canvas.toDataURL('image/png'); link.click();
+});
+document.getElementById('printProfessionalReviewQr')?.addEventListener('click',()=>{
+  const canvas=document.getElementById('professionalReviewQrCanvas'); if(!canvas) return;
+  const image=canvas.toDataURL('image/png'); const win=window.open('','_blank','noopener');
+  if(!win){document.getElementById('reviewQrStatus').textContent='Permite las ventanas emergentes para imprimir el QR.';return;}
+  win.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Invitación de valoración PAS</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:35px;color:#173452}img{width:300px;height:300px}h1{font-size:22px}p{max-width:440px;margin:12px auto;line-height:1.5}</style></head><body><h1>Comparte tu experiencia de atención</h1><img src="${image}" alt="Código QR de valoración PAS"><p>Escanea este código para dejar una valoración anónima. Tu reseña será revisada por Directiva PAS antes de publicarse.</p><script>window.onload=()=>window.print()<\/script></body></html>`); win.document.close();
+});
+document.getElementById('copyProfessionalReviewLink')?.addEventListener('click',async()=>{
+  if(!activeProfessionalReviewUrl) return;
+  try { await navigator.clipboard.writeText(activeProfessionalReviewUrl); document.getElementById('reviewQrStatus').textContent='Enlace copiado.'; }
+  catch(_) { document.getElementById('reviewQrStatus').textContent='No fue posible copiar el enlace en este dispositivo.'; }
+});
+
+async function loadAdminProfessionalReviews() {
+  const target=document.getElementById('adminProfessionalReviewsList'); if(!target) return;
+  target.innerHTML='<p class="muted">Cargando valoraciones…</p>';
+  try {
+    const rows=await pasBackend.listProfessionalReviewsForModeration();
+    if(!rows?.length){target.innerHTML='<p class="muted">Todavía no hay valoraciones recibidas.</p>';return;}
+    target.innerHTML=rows.map(row=>`<article class="admin-review-item" data-review-id="${escapeHtml(row.review_id)}"><div class="admin-review-top"><div><strong>${escapeHtml(row.professional_name||'Profesional PAS')}</strong><small>${new Date(row.submitted_at).toLocaleString('es-MX')}</small></div><span class="admin-review-status">${row.moderation_status==='pending'?'Pendiente':row.moderation_status==='needs_revision'?'Revisión solicitada':row.moderation_status==='published'?'Publicada':'Rechazada'}</span></div><div class="admin-review-stars" aria-label="${Number(row.rating)} de 5 estrellas">${'★'.repeat(Number(row.rating))}${'☆'.repeat(5-Number(row.rating))}</div><p>${escapeHtml(row.comment||'Sin comentario.')}</p>${['pending','needs_revision'].includes(row.moderation_status)?`<label>Nota interna / motivo (opcional)<textarea class="admin-review-note" maxlength="600" rows="2" placeholder="Anota la validación o motivo de revisión"></textarea></label><div class="admin-review-actions"><button type="button" class="btn btn-primary" data-review-decision="published">Validar y publicar</button><button type="button" class="btn btn-outline" data-review-decision="needs_revision">Solicitar revisión</button><button type="button" class="btn btn-ghost" data-review-decision="rejected">Rechazar</button></div>`:''}</article>`).join('');
+  } catch(error) { target.innerHTML=`<p class="muted">No se pudo cargar la bandeja. ${escapeHtml(error.message||'')}</p>`; }
+}
+document.getElementById('refreshProfessionalReviews')?.addEventListener('click',loadAdminProfessionalReviews);
+document.getElementById('adminProfessionalReviewsList')?.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-review-decision]'); if(!button) return;
+  const card=button.closest('[data-review-id]'); if(!card) return;
+  const decision=button.dataset.reviewDecision;
+  const note=card.querySelector('.admin-review-note')?.value.trim()||'';
+  if(decision==='published' && !confirm('Confirma que Directiva validó que esta valoración corresponde a una atención real y que el comentario no expone datos identificables ni clínicos. ¿Publicar?')) return;
+  button.disabled=true;
+  try { await pasBackend.moderateProfessionalReview(card.dataset.reviewId,decision,note); await loadAdminProfessionalReviews(); }
+  catch(error) { alert(error.message||'No se pudo actualizar la valoración.'); button.disabled=false; }
+});
+
+async function initializePublicProfessionalReview() {
+  const token=new URLSearchParams(location.search).get('review');
+  if(!token) return;
+  document.getElementById('loginScreen')?.classList.add('hidden');
+  document.getElementById('passwordSetupScreen')?.classList.add('hidden');
+  document.getElementById('appShell')?.classList.add('hidden');
+  document.getElementById('memberPortalScreen')?.classList.add('hidden');
+  const screen=document.getElementById('publicScreen'); screen?.classList.remove('hidden');
+  document.querySelector('.verify-main')?.classList.add('review-open');
+  document.getElementById('publicProfessionalReviewPanel')?.classList.remove('hidden');
+  document.getElementById('publicVerifyForm')?.classList.add('hidden');
+  document.getElementById('publicVerifyResult')?.classList.add('hidden');
+  document.querySelector('.verify-main>h1')?.classList.add('hidden');
+  document.querySelector('.verify-main>p')?.classList.add('hidden');
+  document.getElementById('publicProfessionalReviewForm')?.addEventListener('submit',async event=>{
+    event.preventDefault(); const submit=document.getElementById('submitPublicProfessionalReview');
+    const rating=Number(new FormData(event.currentTarget).get('publicReviewRating'));
+    if(!rating){setReviewMessage('publicProfessionalReviewMessage','Selecciona una calificación.',true);return;}
+    submit.disabled=true; setReviewMessage('publicProfessionalReviewMessage','Enviando tu valoración…');
+    try { await pasBackend.submitProfessionalReview(token,rating,document.getElementById('publicProfessionalReviewComment').value.trim()); event.currentTarget.innerHTML='<div class="review-thanks"><strong>¡Gracias por compartir tu experiencia!</strong><p>Tu valoración fue recibida y será revisada por Directiva PAS antes de publicarse.</p></div>'; history.replaceState({},'',location.pathname); }
+    catch(error) { setReviewMessage('publicProfessionalReviewMessage',error.message||'No fue posible enviar la valoración. Verifica que el QR siga vigente y no haya sido utilizado.',true); submit.disabled=false; }
+  });
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initializePublicProfessionalReview); else initializePublicProfessionalReview();
+
+const adminReviewPanel=document.getElementById('adminProfessionalReviewsList');
+if(adminReviewPanel && 'MutationObserver' in window){
+  const observer=new MutationObserver(()=>{const shell=document.getElementById('appShell');if(shell&&!shell.classList.contains('hidden'))loadAdminProfessionalReviews();});
+  const shell=document.getElementById('appShell');if(shell){observer.observe(shell,{attributes:true,attributeFilter:['class']});if(!shell.classList.contains('hidden'))loadAdminProfessionalReviews();}
+}

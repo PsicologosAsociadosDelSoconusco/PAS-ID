@@ -82,6 +82,34 @@
       }), 'directorio profesional público');
     },
 
+    async createMyProfessionalReviewInvite() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const rows = await unwrap(client.rpc('create_my_professional_review_invite'), 'generación de QR de valoración');
+      return Array.isArray(rows) ? rows[0] : rows;
+    },
+
+    async submitProfessionalReview(token, rating, comment = '') {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      if (!/^[a-f0-9]{64}$/i.test(token || '') || !Number.isInteger(Number(rating)) || Number(rating)<1 || Number(rating)>5) throw new Error('La invitación o la calificación no son válidas.');
+      return unwrap(client.rpc('submit_professional_review', { p_token:token, p_rating:Number(rating), p_comment:comment || null }), 'envío de valoración');
+    },
+
+    async listProfessionalReviewsForModeration() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('list_professional_reviews_for_moderation'), 'bandeja de valoraciones');
+    },
+
+    async moderateProfessionalReview(reviewId, decision, note = '') {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('moderate_professional_review', { p_review_id:reviewId, p_decision:decision, p_note:note || null }), 'moderación de valoración');
+    },
+
+    async getPublicProfessionalRating(memberId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      const rows = await unwrap(client.rpc('get_public_professional_rating', { p_member_id:memberId }), 'promedio público de valoraciones');
+      return Array.isArray(rows) ? rows[0] : rows;
+    },
+
     async listNotifications() {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.rpc('list_my_pas_notifications'), 'notificaciones');
