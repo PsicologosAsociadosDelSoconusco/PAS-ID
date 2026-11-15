@@ -179,34 +179,24 @@ function renderMembers() {
     <td><span class="folio">${escapeHtml(member.id)}</span></td><td><span class="type-label">${escapeHtml(member.type)}</span></td><td>${escapeHtml(formatDate(member.expires))}</td><td>${statusBadge(effectiveStatus(member))}</td><td><span class="account-status ${member.authUserId ? 'linked' : 'unlinked'}">${member.authUserId ? 'Vinculada' : 'Sin cuenta'}</span></td><td><button class="action-button" data-manage="${escapeHtml(member.id)}" aria-label="Gestionar ${escapeHtml(member.name)}" title="Gestionar miembro">⋯</button></td></tr>`).join('');
   document.getElementById('emptyMembers').classList.toggle('hidden', filtered.length > 0);
 }
-function drawQrFallback(canvas, value, size) {
-  if (!canvas || !value) return;
-  const ctx = canvas.getContext('2d');
-  const dimension = size || canvas.width || 112;
-  const paintPlaceholder = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#f1f4f7'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#52677e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('QR no disponible', canvas.width / 2, canvas.height / 2);
-  };
+
+function pasQrImageUrl(value, size = 420) {
   const encoded = encodeURIComponent(value);
-  const sources = [
-    `https://api.qrserver.com/v1/create-qr-code/?size=${dimension}x${dimension}&margin=1&color=173655&bgcolor=ffffff&data=${encoded}`,
-    `https://quickchart.io/qr?size=${dimension}&margin=1&dark=173655&light=ffffff&text=${encoded}`
-  ];
-  let attempt = 0;
-  const loadNext = () => {
-    if (attempt >= sources.length) { paintPlaceholder(); return; }
-    const image = new Image();
-    image.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    };
-    image.onerror = () => { attempt += 1; loadNext(); };
-    image.src = sources[attempt];
-  };
-  loadNext();
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=1&color=173655&bgcolor=ffffff&data=${encoded}`;
+}
+
+function drawQrFallback(canvas, value, size) {
+  // Compatibilidad con llamadas antiguas: el QR visible ahora se muestra como <img>
+  // para reutilizar la misma imagen en impresión sin exportar canvas contaminado.
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#f1f4f7';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#52677e';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Usa la imagen QR', canvas.width / 2, canvas.height / 2);
 }
 
 function printEligibleMembers() {
@@ -249,12 +239,7 @@ async function generateCredentialPrintPdf() {
       const profile = member.profile || {};
       const identifier = member.publicIdentifier || member.id;
       const verifyUrl = buildVerificationUrl(identifier);
-      let qr = '';
-      // Usa exactamente el helper compartido por PAS ID: QR local y sus alternativas,
-      // con la misma URL pública que las credenciales existentes.
-      const qrCanvas = document.createElement('canvas');
-      await renderPasQr(qrCanvas, verifyUrl, 420);
-      qr = qrCanvas.toDataURL('image/png');
+      const qr = pasQrImageUrl(verifyUrl, 420);
       const photoPath = profile.photo_path;
       const photoUrl = photoPath && pasBackend?.publicProfilePhotoUrl ? pasBackend.publicProfilePhotoUrl(photoPath) : '';
       const issued = formatDate(member.issued);
@@ -324,7 +309,7 @@ function renderCredentials() {
   const issued = document.getElementById('credentialPreviewIssued');
   const expires = document.getElementById('credentialPreviewExpires');
   const status = document.getElementById('credentialPreviewStatus');
-  const canvas = document.getElementById('credentialPreviewQr');
+  const qrImage = document.getElementById('credentialPreviewQr');
   const qrHeading = document.getElementById('credentialQrHeading');
   const qrHelp = document.getElementById('credentialQrHelp');
   const copyButton = document.getElementById('copyCredentialPreviewUrl');
@@ -333,7 +318,8 @@ function renderCredentials() {
     issued.textContent = '—'; expires.textContent = '—'; status.innerHTML = '<i></i> SIN SELECCIÓN';
     badge.textContent = 'VISTA GENERAL'; qrHeading.textContent = 'Sin credencial seleccionada'; qrHelp.textContent = 'Elige «Ver tarjeta» en un miembro del directorio para consultar su credencial.';
     copyButton.disabled = true; copyButton.dataset.url = '';
-    const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#f1f4f7'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#52677e'; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.fillText('SELECCIONA',canvas.width/2,canvas.height/2-4); ctx.fillText('UN MIEMBRO',canvas.width/2,canvas.height/2+10);
+    qrImage.removeAttribute('src'); qrImage.alt = 'Selecciona un miembro para ver su QR';
+    document.getElementById('credentialPreviewQrOnCard').removeAttribute('src');
     return;
   }
   const publicId = preview.publicIdentifier || preview.id;
@@ -343,19 +329,22 @@ function renderCredentials() {
   type.textContent = String(preview.type || 'MIEMBRO PAS').toUpperCase();
   identifier.textContent = publicId;
   monogram.textContent = initials(preview.name);
+  const photoElement = document.getElementById('credentialPreviewPhoto');
+  const photoPath = preview.profile?.photo_path;
+  const photoUrl = photoPath && pasBackend?.publicProfilePhotoUrl ? pasBackend.publicProfilePhotoUrl(photoPath) : '';
+  if (photoUrl) { photoElement.src = photoUrl; photoElement.hidden = false; monogram.hidden = true; }
+  else { photoElement.removeAttribute('src'); photoElement.hidden = true; monogram.hidden = false; }
   issued.textContent = formatDate(preview.issued).toUpperCase();
   expires.textContent = formatDate(preview.expires).toUpperCase();
   status.innerHTML = `<i></i> ${escapeHtml(effectiveStatus(preview).toUpperCase())}`;
   qrHeading.textContent = `QR · ${preview.name}`;
   qrHelp.textContent = 'El mismo enlace puede grabarse en una etiqueta NFC compatible.';
   copyButton.disabled = false; copyButton.dataset.url = verifyUrl;
-  const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
-  if (window.QRCode?.toCanvas) {
-    window.QRCode.toCanvas(canvas, verifyUrl, {width:112, margin:1, color:{dark:'#173655',light:'#ffffff'}})
-      .catch(error => { console.warn('SDK QR no disponible; usando generador alternativo.', error); drawQrFallback(canvas, verifyUrl, 112); });
-  } else {
-    drawQrFallback(canvas, verifyUrl, 112);
-  }
+  qrImage.src = pasQrImageUrl(verifyUrl, 420);
+  qrImage.alt = `Código QR de verificación de ${preview.name}`;
+  const cardQr = document.getElementById('credentialPreviewQrOnCard');
+  cardQr.src = qrImage.src;
+  cardQr.alt = qrImage.alt;
 }
 function renderAll() {
   updateStats(); renderRecent(); renderMembers(); renderCredentials();
