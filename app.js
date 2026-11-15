@@ -7,6 +7,12 @@ const backendConfigured = Boolean(pasBackend && pasBackend.hasConfiguration());
 const backendUnavailable = backendConfigured && !connectedMode;
 let signedInEmail = '';
 let signedInRole = '';
+let signedInUserId = '';
+let myInstitutionalRequests = [];
+let adminInstitutionalRequests = [];
+let activeMemberRequestId = null;
+let activeAdminRequestId = null;
+let directivaOperators = [];
 let currentMemberProfile = null;
 let returnToMemberPortal = false;
 let selectedMemberId = null;
@@ -536,37 +542,157 @@ function buildVerificationUrl(identifier) {
 function renderMemberRequests(requests = []) {
   const target = document.getElementById('memberRequestsList');
   if (!target) return;
-  if (!requests.length) {
-    target.innerHTML = '<p class="muted">No hay solicitudes registradas.</p>';
-    return;
-  }
-  target.innerHTML = requests.map(request => {
-    const status = request.request_status === 'approved' ? 'Aprobada' : request.request_status === 'rejected' ? 'Rechazada' : 'Pendiente';
-    const changes = Object.entries(request.requested_changes || {}).map(([key,value]) => `${profileChangeLabel(key)}: ${value || '—'}`).join(' · ');
-    return `<article class="member-request-row"><div><b>${status}</b><small>${new Date(request.submitted_at).toLocaleDateString('es-MX')} · ${escapeHtml(changes)}</small>${request.admin_response ? `<small>Respuesta de Directiva: ${escapeHtml(request.admin_response)}</small>` : ''}</div><span class="request-status ${request.request_status}">${status}</span></article>`;
+  myInstitutionalRequests = requests || [];
+  if (!myInstitutionalRequests.length) { target.innerHTML = '<p class="muted">Aún no has enviado solicitudes.</p>'; return; }
+  target.innerHTML = myInstitutionalRequests.map(item => {
+    const status = requestStatusLabel(item.request_status);
+    const owner = item.claimed_by_name ? `Responsable: ${escapeHtml(item.claimed_by_name)}` : 'En espera de que un directivo la tome';
+    const closed = ['approved','rejected'].includes(item.request_status);
+    return `<article class="institutional-request-row"><div class="institutional-request-row-head"><div><b>${escapeHtml(item.subject)}</b><small>${escapeHtml(item.request_number)} · ${escapeHtml(item.category)} · ${new Date(item.submitted_at).toLocaleDateString('es-MX')}</small></div><span class="request-status ${item.request_status}">${status}</span></div>${requestDescriptionMarkup(item)}<small class="institutional-request-meta">${owner} · Último movimiento: ${new Date(item.last_activity_at || item.submitted_at).toLocaleString('es-MX')}</small><div class="member-request-actions"><button type="button" class="btn btn-outline" data-member-open-request="${item.id}">Ver conversación y seguimiento →</button>${closed ? '<small class="field-help">Caso cerrado</small>' : ''}</div></article>`;
   }).join('');
 }
-function requestStatusLabel(status) { return ({pending:'Pendiente',in_review:'En revisión',approved:'Aprobada',rejected:'Rechazada',needs_info:'Requiere información'})[status] || 'Pendiente'; }
-function renderMemberRequests(requests = []) {
-  const target = document.getElementById('memberRequestsList');
-  if (!target) return;
-  if (!requests.length) { target.innerHTML = '<p class="muted">Aún no has enviado solicitudes.</p>'; return; }
-  target.innerHTML = requests.map(item => `<article class="institutional-request-row"><div class="institutional-request-row-head"><div><b>${escapeHtml(item.subject)}</b><small>${escapeHtml(item.request_number)} · ${new Date(item.submitted_at).toLocaleDateString('es-MX')}</small></div><span class="request-status ${item.request_status}">${requestStatusLabel(item.request_status)}</span></div><p>${escapeHtml(item.description)}</p><small class="institutional-request-meta">${escapeHtml(item.category)}${item.related_place ? ' · ' + escapeHtml(item.related_place) : ''}</small>${item.admin_response ? `<div class="institutional-response"><b>Respuesta de Directiva</b><p>${escapeHtml(item.admin_response)}</p></div>` : ''}</article>`).join('');
+function requestStatusLabel(status) {
+  return ({pending:'Pendiente',in_review:'En revisión',approved:'Resuelta / aprobada',rejected:'Rechazada',needs_info:'Requiere información'})[status] || 'Pendiente';
+}
+function requestDescriptionMarkup(request) {
+  if (request.source_type !== 'profile_change') return `<p>${escapeHtml(request.description)}</p>`;
+  try {
+    const raw = String(request.description || '').replace(/^Cambios solicitados:\s*/, '');
+    const changes = JSON.parse(raw);
+    const items = Object.entries(changes).map(([key,value]) => {
+      if (key === 'photo_path') {
+        const url = pasBackend.publicProfilePhotoUrl(value);
+        return `<div class=\"request-change-summary-item request-change-summary-photo\"><b>${escapeHtml(profileChangeLabel(key))}</b>${url ? `<a href=\"${escapeHtml(url)}\" target=\"_blank\" rel=\"noopener\"><img src=\"${escapeHtml(url)}\" alt=\"Fotografía propuesta\" loading=\"lazy\">Ver fotografía propuesta ↗</a>` : '<span>Archivo enviado</span>'}</div>`;
+      }
+      const valueText = value === true ? 'Sí' : value === false ? 'No' : value == null || value === '' ? '—' : String(value);
+      return `<div class=\"request-change-summary-item\"><b>${escapeHtml(profileChangeLabel(key))}</b><span>${escapeHtml(valueText)}</span></div>`;
+    }).join('');
+    return `<div class=\"request-change-summary\">${items}</div>`;
+  } catch (_) {
+    return `<p>${escapeHtml(request.description)}</p>`;
+  }
 }
 async function loadMyInstitutionalRequests() {
-  const target = document.getElementById('memberRequestsList'); if (!target || !connectedMode) return;
+  const target = document.getElementById('memberRequestsList');
+  if (!target || !connectedMode) return;
   target.innerHTML = '<p class="muted">Consultando tus solicitudes…</p>';
   try { renderMemberRequests(await pasBackend.listMyInstitutionalRequests()); }
   catch (error) { target.innerHTML = `<p class="muted">No fue posible cargar tus solicitudes: ${escapeHtml(error.message)}</p>`; }
 }
+function renderAdminRequestRows(rows = []) {
+  const target = document.getElementById('institutionalRequestsAdminList');
+  if (!target) return;
+  const search = (document.getElementById('requestInboxSearch')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('requestInboxStatus')?.value || 'all';
+  const ownerFilter = document.getElementById('requestInboxOwner')?.value || 'all';
+  const filtered = rows.filter(r => {
+    if (statusFilter !== 'all' && r.request_status !== statusFilter) return false;
+    if (ownerFilter === 'unassigned' && r.claimed_by) return false;
+    if (ownerFilter === 'mine' && r.claimed_by !== signedInUserId) return false;
+    if (search && ![r.request_number,r.subject,r.requester_name,r.requester_email,r.category].some(v => String(v || '').toLowerCase().includes(search))) return false;
+    return true;
+  });
+  if (!filtered.length) { target.innerHTML = '<p class="muted">No hay solicitudes que coincidan con estos filtros.</p>'; return; }
+  target.innerHTML = filtered.map(r => {
+    const claimed = Boolean(r.claimed_by);
+    const mine = r.claimed_by === signedInUserId;
+    const closed = ['approved','rejected'].includes(r.request_status);
+    const ownerText = claimed ? `En atención de ${escapeHtml(r.claimed_by_name || 'Directiva')}` : closed ? 'Caso cerrado' : 'Disponible para primera atención';
+    const action = !claimed && closed
+      ? '<span class="request-owner-lock">Caso cerrado · solo consulta histórica</span>'
+      : !claimed
+        ? `<button type="button" class="btn btn-primary" data-claim-request="${r.id}">Atender solicitud →</button>`
+        : mine
+          ? `<button type="button" class="btn btn-primary" data-open-admin-request="${r.id}">Abrir caso y conversación →</button>`
+          : `<span class="request-owner-lock">Atendida por otro directivo</span>`;
+    return `<article class="institutional-admin-row" data-request-card="${r.id}"><div class="profile-request-head"><div><b>${escapeHtml(r.subject)}</b><small>${escapeHtml(r.request_number)} · ${escapeHtml(r.requester_name || r.requester_email || 'Usuario PAS')} · ${escapeHtml(r.requester_role)} · ${new Date(r.submitted_at).toLocaleString('es-MX')}</small></div><span class="request-status ${r.request_status}">${requestStatusLabel(r.request_status)}</span></div><div class="institutional-admin-meta"><b>${escapeHtml(r.category)}</b>${r.related_place ? ' · ' + escapeHtml(r.related_place) : ''}${r.proposed_date ? ' · Fecha: ' + escapeHtml(r.proposed_date) : ''}</div>${requestDescriptionMarkup(r)}<div class="request-owner-row"><span>${ownerText}</span>${r.claimed_at ? `<small>Tomada: ${new Date(r.claimed_at).toLocaleString('es-MX')}</small>` : ''}</div><div class="institutional-admin-actions">${action}</div></article>`;
+  }).join('');
+}
 async function loadInstitutionalRequestsAdmin() {
-  const target = document.getElementById('institutionalRequestsAdminList'); if (!target || !connectedMode || signedInRole !== 'directiva') return;
+  const target = document.getElementById('institutionalRequestsAdminList');
+  if (!target || !connectedMode || signedInRole !== 'directiva') return;
   target.innerHTML = '<p class="muted">Consultando solicitudes…</p>';
   try {
-    const rows = await pasBackend.listInstitutionalRequests();
-    document.getElementById('institutionalRequestCount').textContent = `${rows.filter(r => r.request_status === 'pending').length} pendientes`;
-    target.innerHTML = rows.length ? rows.map(r => `<article class="institutional-admin-row"><div class="profile-request-head"><div><b>${escapeHtml(r.subject)}</b><small>${escapeHtml(r.request_number)} · ${escapeHtml(r.requester_name || r.requester_email || 'Usuario PAS')} · ${escapeHtml(r.requester_role)} · ${new Date(r.submitted_at).toLocaleString('es-MX')}</small></div><span class="request-status ${r.request_status}">${requestStatusLabel(r.request_status)}</span></div><div class="institutional-admin-meta"><b>${escapeHtml(r.category)}</b>${r.related_place ? ' · ' + escapeHtml(r.related_place) : ''}${r.proposed_date ? ' · Fecha: ' + escapeHtml(r.proposed_date) : ''}</div><p>${escapeHtml(r.description)}</p>${r.admin_response ? `<div class="institutional-response"><b>Respuesta anterior</b><p>${escapeHtml(r.admin_response)}</p></div>` : ''}<div class="institutional-admin-actions"><select aria-label="Estado de solicitud" data-request-status="${r.id}"><option value="in_review" ${r.request_status==='in_review'?'selected':''}>En revisión</option><option value="needs_info" ${r.request_status==='needs_info'?'selected':''}>Requiere información</option><option value="approved" ${r.request_status==='approved'?'selected':''}>Aprobar</option><option value="rejected" ${r.request_status==='rejected'?'selected':''}>Rechazar</option></select><input type="text" maxlength="3000" placeholder="Respuesta u observaciones para el solicitante" value="${escapeHtml(r.admin_response || '')}" data-request-response="${r.id}"><button class="btn btn-primary" type="button" data-save-request="${r.id}">Guardar respuesta</button></div></article>`).join('') : '<p class="muted">Todavía no se han recibido solicitudes.</p>';
+    adminInstitutionalRequests = await pasBackend.listInstitutionalRequests();
+    const pending = adminInstitutionalRequests.filter(r => ['pending','in_review','needs_info'].includes(r.request_status)).length;
+    const unassigned = adminInstitutionalRequests.filter(r => !r.claimed_by && ['pending','in_review','needs_info'].includes(r.request_status)).length;
+    document.getElementById('institutionalRequestCount').textContent = `${pending} activas · ${unassigned} sin responsable`;
+    renderAdminRequestRows(adminInstitutionalRequests);
+    await refreshAdminNotificationDot();
   } catch (error) { target.innerHTML = `<p class="muted">No fue posible cargar las solicitudes: ${escapeHtml(error.message)}</p>`; }
+}
+function requestEventLabel(event) {
+  const details = event.details || {};
+  if (event.event_type === 'claimed') return `${event.actor_name} tomó la responsabilidad del caso.`;
+  if (event.event_type === 'released') return `${event.actor_name} devolvió el caso a la bandeja general.`;
+  if (event.event_type === 'transferred') return `${event.actor_name} transfirió el caso a ${details.to_name || 'otro directivo'}.`;
+  if (event.event_type === 'status_changed') return `${event.actor_name} cambió el estado: ${requestStatusLabel(details.from)} → ${requestStatusLabel(details.to)}.${details.response ? ` Nota: ${details.response}` : ''}`;
+  return 'Movimiento registrado.';
+}
+function renderRequestEvents(target, events = []) {
+  if (!target) return;
+  target.innerHTML = events.length ? `<div class="request-event-list-title">Historial del caso</div>${events.map(e => `<div class="request-event-item"><span class="request-event-dot"></span><div><b>${escapeHtml(requestEventLabel(e))}</b><small>${new Date(e.created_at).toLocaleString('es-MX')}</small></div></div>`).join('')}` : '';
+}
+function renderRequestMessages(target, messages = []) {
+  if (!target) return;
+  target.innerHTML = messages.length ? messages.map(m => `<article class="request-message ${m.sender_user_id === signedInUserId ? 'is-mine' : ''}"><div class="request-message-meta"><b>${escapeHtml(m.sender_name)}</b><span>${m.sender_role === 'directiva' ? 'Directiva' : m.sender_role === 'sistema' ? 'Sistema' : 'Integrante'} · ${new Date(m.created_at).toLocaleString('es-MX')}</span></div><p>${escapeHtml(m.body)}</p></article>`).join('') : '<p class="muted">Aún no hay mensajes. Esta conversación permanecerá vinculada al folio.</p>';
+  target.scrollTop = target.scrollHeight;
+}
+async function openMemberRequestThread(requestId) {
+  const request = myInstitutionalRequests.find(item => item.id === requestId);
+  if (!request) return;
+  activeMemberRequestId = requestId;
+  const panel = document.getElementById('memberRequestThreadPanel');
+  panel.classList.remove('hidden');
+  document.getElementById('memberRequestThreadTitle').textContent = `${request.request_number} · ${request.subject}`;
+  document.getElementById('memberRequestThreadMeta').textContent = `${request.category} · ${requestStatusLabel(request.request_status)} · ${request.claimed_by_name ? `Responsable: ${request.claimed_by_name}` : 'En espera de atención'}`;
+  document.getElementById('memberRequestMessages').innerHTML = '<p class="muted">Cargando conversación…</p>';
+  const reply = document.getElementById('memberRequestReply');
+  const send = document.querySelector('#memberRequestReplyForm button[type="submit"]');
+  const closed = ['approved','rejected'].includes(request.request_status);
+  reply.disabled = closed; send.disabled = closed;
+  reply.placeholder = closed ? 'Esta solicitud ya fue cerrada. Para continuar, crea una nueva solicitud.' : 'Escribe un mensaje para el directivo responsable…';
+  try {
+    await pasBackend.markRequestMessagesRead(requestId);
+    const [messages, events] = await Promise.all([pasBackend.listRequestMessages(requestId),pasBackend.listRequestEvents(requestId)]);
+    renderRequestMessages(document.getElementById('memberRequestMessages'), messages);
+    renderRequestEvents(document.getElementById('memberRequestEvents'), events);
+    await refreshMemberNotificationDot();
+  } catch (error) { document.getElementById('memberRequestMessages').innerHTML = `<p class="muted">No fue posible abrir la conversación: ${escapeHtml(error.message)}</p>`; }
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function openAdminRequestThread(requestId) {
+  const request = adminInstitutionalRequests.find(item => item.id === requestId);
+  if (!request || request.claimed_by !== signedInUserId) return;
+  activeAdminRequestId = requestId;
+  const panel = document.getElementById('adminRequestThreadPanel');
+  panel.classList.remove('hidden');
+  document.getElementById('adminRequestThreadTitle').textContent = `${request.request_number} · ${request.subject}`;
+  document.getElementById('adminRequestThreadMeta').textContent = `${request.requester_name || request.requester_email || 'Integrante PAS'} · ${request.requester_role} · ${request.category}`;
+  document.getElementById('adminRequestStatus').value = ['approved','rejected'].includes(request.request_status) ? request.request_status : request.request_status;
+  const reply = document.getElementById('adminRequestReply');
+  const send = document.querySelector('#adminRequestReplyForm button[type="submit"]');
+  const closed = ['approved','rejected'].includes(request.request_status);
+  reply.disabled = closed; send.disabled = closed;
+  document.getElementById('adminRequestStatus').disabled = closed;
+  document.getElementById('adminRequestStatusNote').disabled = closed;
+  document.getElementById('saveAdminRequestStatus').disabled = closed;
+  document.getElementById('adminRequestTransferTarget').disabled = closed;
+  document.getElementById('transferAdminRequest').disabled = closed;
+  document.getElementById('releaseAdminRequest').disabled = closed;
+  reply.placeholder = closed ? 'Este caso está cerrado. Puedes consultar el historial, pero no reabrirlo.' : 'Escribe una respuesta dentro del expediente…';
+  document.getElementById('adminRequestMessages').innerHTML = '<p class="muted">Cargando conversación…</p>';
+  try {
+    await pasBackend.markRequestMessagesRead(requestId);
+    const [messages, events] = await Promise.all([pasBackend.listRequestMessages(requestId),pasBackend.listRequestEvents(requestId)]);
+    renderRequestMessages(document.getElementById('adminRequestMessages'), messages);
+    renderRequestEvents(document.getElementById('adminRequestEvents'), events);
+    directivaOperators = await pasBackend.listDirectivaOperators();
+    const transfer = document.getElementById('adminRequestTransferTarget');
+    transfer.innerHTML = '<option value="">Selecciona otro directivo</option>' + directivaOperators.filter(o => o.user_id !== signedInUserId).map(o => `<option value="${o.user_id}">${escapeHtml(o.display_name)}${o.email ? ` · ${escapeHtml(o.email)}` : ''}</option>`).join('');
+    await refreshAdminNotificationDot();
+  } catch (error) { document.getElementById('adminRequestMessages').innerHTML = `<p class="muted">No fue posible abrir la conversación: ${escapeHtml(error.message)}</p>`; }
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function portalEventDate(value) {
   if (!value) return 'Fecha por confirmar';
@@ -688,6 +814,7 @@ function showMemberView(viewName) {
   document.getElementById('memberSidebarScrim').classList.remove('show');
   document.getElementById('memberNotificationPanel').classList.add('hidden');
   if (viewName === 'profile') { initializeOfficeLocationMap(); setTimeout(()=>officeLocationMap?.invalidateSize(),160); }
+  if (viewName === 'requests') loadMyInstitutionalRequests();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function openMemberDirectory() {
@@ -703,14 +830,18 @@ function openMemberDirectory() {
 async function refreshMemberNotificationDot() {
   const dot = document.getElementById('memberNotificationUnreadDot');
   if (!dot) return;
-  try { const rows = await pasBackend.listNotifications(); dot.classList.toggle('has-unread', rows.some(item => !item.read_at)); }
-  catch (error) { dot.classList.remove('has-unread'); console.warn('No se pudo consultar el estado de notificaciones.', error); }
+  try {
+    const [rows, unreadMessages] = await Promise.all([pasBackend.listNotifications(),pasBackend.countUnreadRequestMessages().catch(() => 0)]);
+    dot.classList.toggle('has-unread', rows.some(item => !item.read_at) || Number(unreadMessages) > 0);
+  } catch (error) { dot.classList.remove('has-unread'); console.warn('No se pudo consultar el estado de notificaciones.', error); }
 }
 async function refreshAdminNotificationDot() {
   const dot = document.getElementById('notificationUnreadDot');
   if (!dot) return;
-  try { const rows = await pasBackend.listNotifications(); dot.classList.toggle('has-unread', rows.some(item => !item.read_at)); }
-  catch (error) { dot.classList.remove('has-unread'); console.warn('No se pudo consultar el estado de notificaciones.', error); }
+  try {
+    const [rows, unreadMessages, unassignedRequests] = await Promise.all([pasBackend.listNotifications(),pasBackend.countUnreadRequestMessages().catch(() => 0),pasBackend.countUnassignedInstitutionalRequests().catch(() => 0)]);
+    dot.classList.toggle('has-unread', rows.some(item => !item.read_at) || Number(unreadMessages) > 0 || Number(unassignedRequests) > 0);
+  } catch (error) { dot.classList.remove('has-unread'); console.warn('No se pudo consultar el estado de notificaciones.', error); }
 }
 
 function showMemberPortal(profile) {
@@ -823,6 +954,7 @@ function showMemberPortal(profile) {
 }
 async function activateAuthenticatedRole(role, session) {
   signedInRole = role || '';
+  signedInUserId = session?.user?.id || '';
   signedInEmail = session?.user?.email || signedInEmail || '';
   if (role === 'directiva') {
     members = await pasBackend.listMembers();
@@ -850,10 +982,12 @@ async function loadMemberNotificationPanel() {
   const target=document.getElementById('memberNotificationList'); if(!target)return;
   target.innerHTML='<p class="muted">Cargando notificaciones…</p>';
   try {
-    const rows=await pasBackend.listNotifications();
+    const [rows,requestPreviews]=await Promise.all([pasBackend.listNotifications(),pasBackend.listUnreadRequestPreviews().catch(()=>[])]);
     const unread=rows.filter(n=>!n.read_at).length;
-    document.getElementById('memberNotificationUnreadDot').classList.toggle('has-unread',unread>0);
-    target.innerHTML=rows.length?rows.map(n=>`<article class="notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p>${!n.read_at?`<button type="button" data-member-read-notification="${n.id}">Marcar como leída</button>`:''}</article>`).join(''):'<p class="muted">No tienes notificaciones por ahora.</p>';
+    document.getElementById('memberNotificationUnreadDot').classList.toggle('has-unread',unread>0||requestPreviews.length>0);
+    const messages=requestPreviews.map(item=>`<article class="notification-item is-unread request-notification-item"><div><b>Nuevo mensaje · ${escapeHtml(item.request_number)}</b><small>${new Date(item.created_at).toLocaleString('es-MX')} · ${escapeHtml(item.sender_name)}</small></div><p><strong>${escapeHtml(item.subject)}</strong><br>${escapeHtml(item.body)}</p><button type="button" data-member-unread-request="${item.request_id}">Abrir conversación →</button></article>`).join('');
+    const notices=rows.map(n=>`<article class="notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p>${!n.read_at?`<button type="button" data-member-read-notification="${n.id}">Marcar como leída</button>`:''}</article>`).join('');
+    target.innerHTML=messages+notices||( '<p class="muted">No tienes notificaciones por ahora.</p>' );
   } catch(error){target.innerHTML=`<p class="muted">${escapeHtml(error.message||'No fue posible cargar avisos.')}</p>`;}
 }
 
@@ -879,11 +1013,14 @@ async function loadNotificationPanel() {
   if(!target) return;
   target.innerHTML='<p class="muted">Cargando notificaciones…</p>';
   try {
-    const rows=await pasBackend.listNotifications();
+    const [rows,requestPreviews,unassignedRequests]=await Promise.all([pasBackend.listNotifications(),pasBackend.listUnreadRequestPreviews().catch(()=>[]),pasBackend.listUnassignedInstitutionalRequestPreviews().catch(()=>[])]);
     const unread=rows.filter(n=>!n.read_at).length;
-    document.getElementById('notificationUnreadDot').classList.toggle('has-unread',unread>0);
-    document.getElementById('notificationCount').textContent=`${unread} sin leer · ${rows.length} recientes`;
-    target.innerHTML=rows.length?rows.map(n=>`<article class="notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p>${!n.read_at?`<button type="button" data-read-notification="${n.id}">Marcar como leída</button>`:''}</article>`).join(''):'<p class="muted">No tienes notificaciones por ahora.</p>';
+    document.getElementById('notificationUnreadDot').classList.toggle('has-unread',unread>0||requestPreviews.length>0||unassignedRequests.length>0);
+    document.getElementById('notificationCount').textContent=`${unread} avisos sin leer · ${requestPreviews.length} conversaciones nuevas · ${unassignedRequests.length} solicitudes por atender`;
+    const incoming=unassignedRequests.map(item=>`<article class="notification-item is-unread request-notification-item"><div><b>Nueva solicitud disponible · ${escapeHtml(item.request_number)}</b><small>${new Date(item.submitted_at).toLocaleString('es-MX')} · ${escapeHtml(item.requester_name||'Integrante PAS')}</small></div><p><strong>${escapeHtml(item.subject)}</strong><br>${escapeHtml(item.category)} · ${escapeHtml(item.requester_role)}</p><button type="button" data-admin-new-request="${item.id}">Ver bandeja →</button></article>`).join('');
+    const messages=requestPreviews.map(item=>`<article class="notification-item is-unread request-notification-item"><div><b>Nuevo mensaje · ${escapeHtml(item.request_number)}</b><small>${new Date(item.created_at).toLocaleString('es-MX')} · ${escapeHtml(item.sender_name)}</small></div><p><strong>${escapeHtml(item.subject)}</strong><br>${escapeHtml(item.body)}</p><button type="button" data-admin-unread-request="${item.request_id}">Abrir caso →</button></article>`).join('');
+    const notices=rows.map(n=>`<article class="notification-item ${n.read_at?'is-read':'is-unread'}"><div><b>${escapeHtml(n.title)}</b><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div><p>${escapeHtml(n.body)}</p>${!n.read_at?`<button type="button" data-read-notification="${n.id}">Marcar como leída</button>`:''}</article>`).join('');
+    target.innerHTML=incoming+messages+notices||'<p class="muted">No tienes notificaciones por ahora.</p>';
   } catch(error){target.innerHTML=`<p class="muted">No fue posible cargar avisos: ${escapeHtml(error.message||'')}</p>`;}
 }
 
@@ -1045,11 +1182,11 @@ document.getElementById('profileChangeForm').addEventListener('submit', async ev
   const button = document.getElementById('submitProfileChanges');
   button.disabled = true; button.textContent = 'Enviando solicitud…';
   try {
-    if (Object.keys(changes).length) await pasBackend.submitProfileChangeRequest(changes);
     if (photoFile) {
       const photoPath = await pasBackend.uploadProfilePhoto(photoFile, currentMemberProfile.member.id);
-      await pasBackend.submitProfilePhotoChangeRequest(photoPath);
+      changes.photo_path = photoPath;
     }
+    if (Object.keys(changes).length) await pasBackend.submitProfileChangeRequest(changes);
     currentMemberProfile = await pasBackend.getMyProfile();
     showMemberPortal(currentMemberProfile);
     showToast('Solicitud enviada. La Directiva revisará tus cambios y fotografía.');
@@ -1075,12 +1212,80 @@ document.getElementById('directivaInstitutionalRequestForm').addEventListener('s
   finally { button.disabled = false; }
 });
 document.getElementById('refreshInstitutionalRequests').addEventListener('click', loadInstitutionalRequestsAdmin);
+document.getElementById('requestInboxSearch')?.addEventListener('input',()=>renderAdminRequestRows(adminInstitutionalRequests));
+document.getElementById('requestInboxStatus')?.addEventListener('change',()=>renderAdminRequestRows(adminInstitutionalRequests));
+document.getElementById('requestInboxOwner')?.addEventListener('change',()=>renderAdminRequestRows(adminInstitutionalRequests));
+document.getElementById('memberRequestsList')?.addEventListener('click',event=>{
+  const button=event.target.closest('[data-member-open-request]'); if(button) openMemberRequestThread(button.dataset.memberOpenRequest);
+});
+document.getElementById('closeMemberRequestThread')?.addEventListener('click',()=>document.getElementById('memberRequestThreadPanel').classList.add('hidden'));
+document.getElementById('closeAdminRequestThread')?.addEventListener('click',()=>document.getElementById('adminRequestThreadPanel').classList.add('hidden'));
+document.getElementById('memberRequestReplyForm')?.addEventListener('submit',async event=>{
+  event.preventDefault(); if(!activeMemberRequestId)return;
+  const input=document.getElementById('memberRequestReply'); const button=event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled=true;
+  try { await pasBackend.sendRequestMessage(activeMemberRequestId,input.value.trim()); input.value=''; const [messages,events]=await Promise.all([pasBackend.listRequestMessages(activeMemberRequestId),pasBackend.listRequestEvents(activeMemberRequestId)]); renderRequestMessages(document.getElementById('memberRequestMessages'),messages); renderRequestEvents(document.getElementById('memberRequestEvents'),events); await loadMyInstitutionalRequests(); showToast('Mensaje enviado.'); }
+  catch(error){showToast(error.message||'No se pudo enviar el mensaje.');}
+  finally{button.disabled=false;}
+});
+document.getElementById('adminRequestReplyForm')?.addEventListener('submit',async event=>{
+  event.preventDefault(); if(!activeAdminRequestId)return;
+  const input=document.getElementById('adminRequestReply'); const button=event.currentTarget.querySelector('button[type="submit"]'); button.disabled=true;
+  try { await pasBackend.sendRequestMessage(activeAdminRequestId,input.value.trim()); input.value=''; const [messages,events]=await Promise.all([pasBackend.listRequestMessages(activeAdminRequestId),pasBackend.listRequestEvents(activeAdminRequestId)]); renderRequestMessages(document.getElementById('adminRequestMessages'),messages); renderRequestEvents(document.getElementById('adminRequestEvents'),events); await loadInstitutionalRequestsAdmin(); showToast('Respuesta enviada al solicitante.'); }
+  catch(error){showToast(error.message||'No se pudo enviar la respuesta.');}
+  finally{button.disabled=false;}
+});
+document.getElementById('saveAdminRequestStatus')?.addEventListener('click',async()=>{
+  if(!activeAdminRequestId)return; const button=document.getElementById('saveAdminRequestStatus'); button.disabled=true;
+  try {
+    const newStatus=document.getElementById('adminRequestStatus').value;
+    await pasBackend.updateInstitutionalRequestStatus(activeAdminRequestId,newStatus,document.getElementById('adminRequestStatusNote').value.trim());
+    document.getElementById('adminRequestStatusNote').value='';
+    const closed=['approved','rejected'].includes(newStatus);
+    document.getElementById('adminRequestReply').disabled=closed;
+    document.querySelector('#adminRequestReplyForm button[type="submit"]').disabled=closed;
+    document.getElementById('adminRequestStatus').disabled=closed;
+    document.getElementById('adminRequestStatusNote').disabled=closed;
+    document.getElementById('saveAdminRequestStatus').disabled=closed;
+    document.getElementById('adminRequestTransferTarget').disabled=closed;
+    document.getElementById('transferAdminRequest').disabled=closed;
+    document.getElementById('releaseAdminRequest').disabled=closed;
+    document.getElementById('adminRequestReply').placeholder=closed?'Este caso está cerrado.':'Escribe una respuesta dentro del expediente…';
+    await loadInstitutionalRequestsAdmin();
+    const [events,messages]=await Promise.all([pasBackend.listRequestEvents(activeAdminRequestId),pasBackend.listRequestMessages(activeAdminRequestId)]);
+    renderRequestEvents(document.getElementById('adminRequestEvents'),events); renderRequestMessages(document.getElementById('adminRequestMessages'),messages);
+    showToast('Estado del caso actualizado.');
+  }
+  catch(error){showToast(error.message||'No se pudo actualizar el estado.');}
+  finally{button.disabled=false;}
+});
+document.getElementById('transferAdminRequest')?.addEventListener('click',async()=>{
+  if(!activeAdminRequestId)return; const target=document.getElementById('adminRequestTransferTarget').value; if(!target){showToast('Selecciona al directivo que recibirá el caso.');return;}
+  const button=document.getElementById('transferAdminRequest'); button.disabled=true;
+  try { await pasBackend.transferInstitutionalRequest(activeAdminRequestId,target); document.getElementById('adminRequestThreadPanel').classList.add('hidden'); activeAdminRequestId=null; await loadInstitutionalRequestsAdmin(); showToast('Caso transferido. El nuevo responsable ya puede atenderlo.'); }
+  catch(error){showToast(error.message||'No se pudo transferir el caso.');}
+  finally{button.disabled=false;}
+});
+document.getElementById('releaseAdminRequest')?.addEventListener('click',async()=>{
+  if(!activeAdminRequestId)return; const button=document.getElementById('releaseAdminRequest'); button.disabled=true;
+  try { await pasBackend.transferInstitutionalRequest(activeAdminRequestId,null); document.getElementById('adminRequestThreadPanel').classList.add('hidden'); activeAdminRequestId=null; await loadInstitutionalRequestsAdmin(); showToast('La solicitud volvió a la bandeja general.'); }
+  catch(error){showToast(error.message||'No se pudo liberar el caso.');}
+  finally{button.disabled=false;}
+});
 document.getElementById('institutionalRequestsAdminList').addEventListener('click', async event => {
-  const button = event.target.closest('[data-save-request]'); if (!button) return;
-  const id = button.dataset.saveRequest; const status = document.querySelector(`[data-request-status="${id}"]`).value; const response = document.querySelector(`[data-request-response="${id}"]`).value.trim();
-  button.disabled = true;
-  try { await pasBackend.reviewInstitutionalRequest(id, status, response); await loadInstitutionalRequestsAdmin(); showToast('La solicitud fue actualizada.'); }
-  catch (error) { showToast(error.message || 'No se pudo actualizar la solicitud.'); button.disabled = false; }
+  const claimButton = event.target.closest('[data-claim-request]');
+  const openButton = event.target.closest('[data-open-admin-request]');
+  if (claimButton) {
+    const id = claimButton.dataset.claimRequest; claimButton.disabled = true; claimButton.textContent = 'Tomando caso…';
+    try {
+      const result = await pasBackend.claimInstitutionalRequest(id);
+      if (!result.claimed) { showToast(`Esta solicitud ya está siendo atendida por ${result.claimed_by_name || 'otro directivo'}.`); await loadInstitutionalRequestsAdmin(); }
+      else { showToast('Ahora eres responsable de esta solicitud.'); await loadInstitutionalRequestsAdmin(); await openAdminRequestThread(id); }
+    } catch (error) { showToast(error.message || 'No se pudo tomar la solicitud.'); }
+    finally { claimButton.disabled = false; claimButton.textContent = 'Atender solicitud →'; }
+    return;
+  }
+  if (openButton) await openAdminRequestThread(openButton.dataset.openAdminRequest);
 });
 
 document.querySelectorAll('.member-nav-item[data-member-view], [data-member-view].member-shortcut, .member-shortcut-grid [data-member-view], .member-dashboard-credential [data-member-view]').forEach(button => button.addEventListener('click', () => showMemberView(button.dataset.memberView)));
@@ -1104,13 +1309,22 @@ document.getElementById('memberNotificationBell')?.addEventListener('click',()=>
 });
 document.getElementById('closeMemberNotificationPanel')?.addEventListener('click',()=>document.getElementById('memberNotificationPanel').classList.add('hidden'));
 document.getElementById('memberNotificationList')?.addEventListener('click',async e=>{
+  const thread=e.target.closest('[data-member-unread-request]');
+  if(thread){
+    document.getElementById('memberNotificationPanel').classList.add('hidden');
+    showMemberView('requests');
+    await loadMyInstitutionalRequests();
+    await openMemberRequestThread(thread.dataset.memberUnreadRequest);
+    await loadMemberNotificationPanel();
+    return;
+  }
   const b=e.target.closest('[data-member-read-notification]');if(!b)return;
-  b.disabled=true;try{await pasBackend.markNotificationRead(b.dataset.memberReadNotification);await loadMemberNotificationPanel();}
+  b.disabled=true;try{await pasBackend.markNotificationRead(b.dataset.memberReadNotification);await loadMemberNotificationPanel();await refreshMemberNotificationDot();}
   catch(error){showToast(error.message||'No se pudo actualizar.');b.disabled=false;}
 });
 document.getElementById('memberSignOutButton').addEventListener('click', async () => {
   try { if (connectedMode) await pasBackend.signOut(); } catch (error) { console.warn(error); }
-  signedInRole = ''; signedInEmail = ''; currentMemberProfile = null;
+  signedInRole = ''; signedInUserId = ''; signedInEmail = ''; currentMemberProfile = null; activeMemberRequestId = null; activeAdminRequestId = null;
   document.getElementById('memberPortalScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('loginPassword').value = '';
@@ -1133,12 +1347,30 @@ document.getElementById('notificationBell')?.addEventListener('click',()=>{
   document.getElementById('notificationPanel').classList.toggle('hidden');
   loadNotificationPanel();
 });
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(signedInRole==='directiva')refreshAdminNotificationDot();else if(signedInRole==='afiliado'||signedInRole==='colaborador')refreshMemberNotificationDot();}});
 document.getElementById('closeNotificationPanel')?.addEventListener('click',()=>document.getElementById('notificationPanel').classList.add('hidden'));
 document.getElementById('notificationAudience')?.addEventListener('change',e=>document.getElementById('notificationRole').classList.toggle('hidden',e.target.value!=='role'));
 document.getElementById('notificationList')?.addEventListener('click',async e=>{
+  const newRequest=e.target.closest('[data-admin-new-request]');
+  if(newRequest){
+    document.getElementById('notificationPanel').classList.add('hidden');
+    showView('requests');
+    await loadInstitutionalRequestsAdmin();
+    document.querySelector(`[data-request-card="${newRequest.dataset.adminNewRequest}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  const thread=e.target.closest('[data-admin-unread-request]');
+  if(thread){
+    document.getElementById('notificationPanel').classList.add('hidden');
+    showView('requests');
+    await loadInstitutionalRequestsAdmin();
+    await openAdminRequestThread(thread.dataset.adminUnreadRequest);
+    await loadNotificationPanel();
+    return;
+  }
   const button=e.target.closest('[data-read-notification]'); if(!button)return;
   button.disabled=true;
-  try{await pasBackend.markNotificationRead(button.dataset.readNotification);await loadNotificationPanel();}
+  try{await pasBackend.markNotificationRead(button.dataset.readNotification);await loadNotificationPanel();await refreshAdminNotificationDot();}
   catch(error){showToast(error.message||'No se pudo actualizar la notificación.');button.disabled=false;}
 });
 document.getElementById('publishNotificationForm')?.addEventListener('submit',async e=>{
@@ -1336,7 +1568,7 @@ document.getElementById('detailContent').addEventListener('click', async event =
   saveMembers(); renderAll(); closeModal('detailModal');
   showToast(`Estado actualizado: ${nextStatus}`);
 });
-document.getElementById('profileRequestsList').addEventListener('click', async event => {
+document.getElementById('profileRequestsList')?.addEventListener('click', async event => {
   const button = event.target.closest('[data-review-request]');
   if (!button) return;
   const requestId = button.dataset.reviewRequest;
@@ -1416,7 +1648,7 @@ document.getElementById('signOutButton').addEventListener('click', async () => {
   try { if (connectedMode) await pasBackend.signOut(); }
   catch (error) { console.warn('No se pudo cerrar la sesión de Supabase.', error); }
   members = [];
-  signedInRole = ''; signedInEmail = ''; currentMemberProfile = null;
+  signedInRole = ''; signedInUserId = ''; signedInEmail = ''; currentMemberProfile = null; activeMemberRequestId = null; activeAdminRequestId = null;
   document.getElementById('appShell').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('signOutButton').classList.add('hidden');

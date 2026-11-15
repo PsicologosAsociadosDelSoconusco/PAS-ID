@@ -10,7 +10,8 @@ PAS ID es la plataforma de identidad, membresías y gestión institucional de Ps
 - `supabase/001_initial_schema.sql`: esquema inicial.
 - `supabase/002_member_portal.sql`: portal y expedientes privados.
 - `supabase/003_certificate_public_verification.sql`: verificación pública de constancias.
-- `supabase/004_institutional_requests.sql`: solicitudes institucionales para Directiva, afiliados y colaboradores.
+- `supabase/004_institutional_requests.sql`: base original de solicitudes institucionales.
+- `supabase/009_integral_requests_messaging.sql`: responsable por primera atención, transferencias, historial y mensajería privada por folio.
 - `supabase/functions/manage-member-access/`: función segura para invitación y vinculación de cuentas.
 
 ## Roles
@@ -27,7 +28,7 @@ La autenticación se gestiona mediante Supabase Auth. Las contraseñas no se alm
 
 1. Mantén `config.js` con la URL y la clave publicable del proyecto correcto.
 2. Publica los archivos de la raíz en GitHub Pages.
-3. Las migraciones se ejecutan una sola vez y en orden, únicamente si aún no están aplicadas en el proyecto: `001`, `002`, `003`, `004`. No vuelvas a ejecutar el esquema inicial sobre una base con datos.
+3. Las migraciones `001` a `008` forman parte del historial previo de la plataforma y no deben repetirse si ya fueron aplicadas. Para la renovación de solicitudes de la etapa 2, ejecuta una sola vez `supabase/009_integral_requests_messaging.sql`.
 4. Despliega `manage-member-access` y conserva `SUPABASE_SERVICE_ROLE_KEY` exclusivamente como secreto del entorno Edge.
 5. Verifica las políticas RLS y los flujos de acceso antes de incorporar nuevos usuarios.
 
@@ -42,6 +43,10 @@ Después de actualizar `supabase/functions/manage-member-access/index.ts`, vuelv
 La presentación profesional admite hasta **1,200 caracteres** tanto en el portal del miembro como en la edición administrativa.
 
 
-## Renovación visual · Etapa 1
+## Renovación · Etapa 1
 
-Consulta `RENOVACION-ETAPA-1.md` para los cambios del portal de integrantes, la credencial digital y la navegación. Esta etapa no agrega migraciones SQL ni cambia la estructura de Supabase.
+Consulta `RENOVACION-ETAPA-1.md` para los cambios del portal de integrantes, la credencial digital y la navegación. Esta etapa no agrega migraciones SQL.
+
+## Renovación · Etapa 2
+
+Consulta `RENOVACION-ETAPA-2.md` para el centro integral de solicitudes, la asignación al primer directivo que atienda y la mensajería privada por folio. Esta etapa incorpora la migración SQL nueva `009`; no vuelvas a ejecutar las migraciones anteriores.

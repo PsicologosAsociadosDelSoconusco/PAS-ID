@@ -350,3 +350,76 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 
 .member-expediente-card{max-width:1000px;background:linear-gradient(145deg,#132a48,#1f4565);color:#fff;border:0;min-height:300px;position:relative;overflow:hidden}.member-expediente-card:after{content:"PAS";position:absolute;right:16px;bottom:-34px;font:800 122px Manrope;color:rgba(255,255,255,.045);pointer-events:none}.member-expediente-card .eyebrow{color:#e6bd69}.member-expediente-card .status-pill{background:rgba(255,255,255,.16);color:#fff}.member-expediente-card h2{position:relative;z-index:1;font:800 clamp(22px,3vw,34px) Manrope;color:#fff;margin:28px 0 7px}.member-expediente-card .member-portal-folio{position:relative;z-index:1;color:#d2e0ed}.member-expediente-facts{position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:19px 16px;border-top:1px solid rgba(255,255,255,.18);padding-top:19px;margin-top:23px}.member-expediente-facts span,.member-expediente-facts b{display:block}.member-expediente-facts span{font-size:8px;letter-spacing:.1em;font-weight:800;color:#9bb1c4}.member-expediente-facts b{font-size:11px;color:#fff;margin-top:5px;overflow-wrap:anywhere}.member-expediente-note{position:relative;z-index:1;color:#c5d4e1;font-size:9px;line-height:1.6;margin:22px 0 0;max-width:700px}
 @media(max-width:650px){.member-expediente-facts{grid-template-columns:1fr 1fr;gap:14px 11px}.member-expediente-card{min-height:0}.member-expediente-card h2{margin-top:20px;font-size:22px}}
+
+/* PAS ID · Etapa 2: centro integral de solicitudes y conversaciones privadas */
+.request-inbox-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,.45fr) minmax(160px,.45fr);gap:10px;margin:16px 0}
+.request-inbox-toolbar input,.request-inbox-toolbar select,.admin-request-controls input,.admin-request-controls select,.admin-request-transfer select{width:100%;min-height:42px;border:1px solid #dfe6ed;border-radius:9px;padding:0 12px;background:#fff;color:#40556a;font:500 11px 'DM Sans',sans-serif}
+.institutional-admin-actions{display:flex;align-items:center;gap:10px;margin-top:13px}
+.institutional-admin-actions .btn{min-height:36px;font-size:10px}
+.request-owner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#52677e;font-size:10px;margin-top:12px;padding-top:10px;border-top:1px solid #edf1f4}
+.request-owner-row small{color:#8996a3}
+.request-owner-lock{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border:1px solid #e5e9ee;border-radius:8px;color:#758294;font-size:10px;font-weight:700;background:#f7f9fb}
+.member-request-actions{display:flex;align-items:center;gap:10px;margin-top:13px}
+.member-request-actions .btn{min-height:36px;font-size:10px}
+.request-thread-panel{margin-top:18px;padding:20px;scroll-margin-top:20px}
+.request-thread-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;padding-bottom:15px;border-bottom:1px solid #e9edf1}
+.request-thread-heading h3{margin:5px 0;color:var(--navy);font:800 18px Manrope,sans-serif;overflow-wrap:anywhere}
+.request-thread-heading small{display:block;color:#8996a3;font-size:10px;line-height:1.5}
+.request-event-list{padding:12px 0 3px}
+.request-event-list:empty{display:none}
+.request-event-list-title{font-size:9px;font-weight:800;letter-spacing:.12em;color:#8290a0;text-transform:uppercase;margin:0 0 10px}
+.request-event-item{display:flex;align-items:flex-start;gap:9px;padding:5px 0}
+.request-event-dot{flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:#d9a12c;margin-top:5px}
+.request-event-item b{display:block;color:#52677e;font-size:10px;font-weight:600;line-height:1.5}
+.request-event-item small{display:block;color:#99a3ae;font-size:9px;margin-top:2px}
+.request-message-list{display:flex;flex-direction:column;gap:10px;max-height:430px;overflow:auto;padding:14px 0;scroll-behavior:smooth}
+.request-message{max-width:min(82%,680px);align-self:flex-start;padding:11px 13px;border:1px solid #e7ecf1;border-radius:12px 12px 12px 3px;background:#f7f9fb}
+.request-message.is-mine{align-self:flex-end;background:#edf4fa;border-color:#d9e5ef;border-radius:12px 12px 3px 12px}
+.request-message-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.request-message-meta b{color:#203d5b;font-size:10px}
+.request-message-meta span{color:#92a0ae;font-size:8px}
+.request-message p{margin:6px 0 0;color:#40566c;font-size:11px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.request-reply-form{display:grid;gap:9px;padding-top:14px;border-top:1px solid #e9edf1}
+.request-reply-form label,.admin-request-controls label,.admin-request-transfer label{display:block;color:#778698;font-size:8px;font-weight:800;letter-spacing:.12em;margin-bottom:6px}
+.request-reply-form textarea{width:100%;resize:vertical;min-height:82px;border:1px solid #dfe6ed;border-radius:9px;padding:11px 12px;color:#40556a;font:500 11px/1.6 'DM Sans',sans-serif}
+.request-reply-form button{justify-self:start;min-height:38px}
+.admin-request-controls{display:grid;grid-template-columns:minmax(145px,.7fr) minmax(190px,1.2fr) auto;gap:10px;align-items:end;padding:15px 0 12px;border-bottom:1px solid #edf0f3}
+.admin-request-controls>div,.admin-request-transfer>div{min-width:0}
+.admin-request-controls .btn,.admin-request-transfer .btn{min-height:40px;font-size:10px}
+.admin-request-transfer{display:flex;align-items:end;gap:9px;padding:12px 0 4px}
+.admin-request-transfer>div{flex:1}
+.directiva-request-create{margin-top:18px;padding:15px 18px}
+.directiva-request-create summary{color:var(--navy);font-size:11px;font-weight:800;cursor:pointer}
+.directiva-request-create[open] summary{padding-bottom:12px;border-bottom:1px solid #edf0f3}
+.directiva-request-create .institutional-request-form{margin-bottom:5px}
+@media(max-width:760px){
+  .request-inbox-toolbar{grid-template-columns:1fr 1fr}
+  .request-inbox-toolbar input{grid-column:1/-1}
+  .admin-request-controls{grid-template-columns:1fr 1fr}
+  .admin-request-controls>div:nth-child(2){grid-column:1/-1}
+  .admin-request-controls .btn{grid-column:1/-1}
+  .admin-request-transfer{align-items:stretch;flex-direction:column}
+  .admin-request-transfer .btn{width:100%}
+  .request-thread-heading{align-items:flex-start;flex-direction:column}
+  .request-thread-heading .btn{align-self:flex-start}
+  .request-message{max-width:94%}
+}
+@media(max-width:480px){
+  .request-inbox-toolbar{grid-template-columns:1fr}
+  .request-inbox-toolbar input{grid-column:auto}
+  .request-thread-panel{padding:13px}
+  .request-owner-row{align-items:flex-start;flex-direction:column;gap:4px}
+  .member-request-actions{align-items:stretch;flex-direction:column}
+  .member-request-actions .btn{width:100%}
+}
+
+
+/* Renovación etapa 2: resumen legible de cambios de perfil dentro del folio único. */
+.request-change-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0;padding:12px;border:1px solid var(--line,#e4eaf0);border-radius:12px;background:var(--surface-soft,#f7f9fb)}
+.request-change-summary-item{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:.86rem}
+.request-change-summary-item b{font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#718096)}
+.request-change-summary-item span{overflow-wrap:anywhere;color:var(--ink,#183451)}
+.request-change-summary-photo{grid-column:1/-1}
+.request-change-summary-photo a{display:flex;align-items:center;gap:10px;color:var(--navy,#173452);text-decoration:none;font-weight:700}
+.request-change-summary-photo img{width:66px;height:66px;object-fit:cover;border-radius:10px;border:1px solid var(--line,#e4eaf0)}
+@media(max-width:640px){.request-change-summary{grid-template-columns:1fr}}

@@ -139,12 +139,80 @@
 
     async listMyInstitutionalRequests() {
       if (!configured) throw new Error('Supabase no está configurado.');
-      return unwrap(client.from('institutional_requests').select('id,request_number,category,subject,description,related_place,proposed_date,request_status,submitted_at,admin_response').order('submitted_at', { ascending: false }), 'mis solicitudes');
+      return unwrap(client.from('institutional_requests')
+        .select('id,request_number,category,subject,description,related_place,proposed_date,request_status,submitted_at,admin_response,claimed_by,claimed_by_name,claimed_at,last_activity_at,closed_at,source_type,source_request_id')
+        .order('last_activity_at', { ascending: false }), 'mis solicitudes');
     },
 
     async listInstitutionalRequests() {
       if (!configured) throw new Error('Supabase no está configurado.');
-      return unwrap(client.from('institutional_requests').select('id,request_number,requester_email,requester_name,requester_role,category,subject,description,related_place,proposed_date,request_status,submitted_at,admin_response').order('submitted_at', { ascending: false }), 'solicitudes institucionales');
+      return unwrap(client.from('institutional_requests')
+        .select('id,request_number,requester_user_id,requester_email,requester_name,requester_role,category,subject,description,related_place,proposed_date,request_status,submitted_at,admin_response,claimed_by,claimed_by_name,claimed_at,last_activity_at,closed_at,source_type,source_request_id')
+        .order('last_activity_at', { ascending: false }), 'solicitudes institucionales');
+    },
+
+    async claimInstitutionalRequest(requestId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('claim_pas_request', { p_request_id: requestId }), 'asignación de solicitud');
+    },
+
+    async listRequestMessages(requestId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('institutional_request_messages')
+        .select('id,request_id,sender_user_id,sender_role,sender_name,body,created_at,read_at')
+        .eq('request_id', requestId).order('created_at', { ascending: true }), 'conversación de solicitud');
+    },
+
+    async listRequestEvents(requestId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.from('institutional_request_events')
+        .select('id,request_id,actor_user_id,actor_name,event_type,details,created_at')
+        .eq('request_id', requestId).order('created_at', { ascending: true }), 'historial de solicitud');
+    },
+
+    async sendRequestMessage(requestId, body) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('send_pas_request_message', { p_request_id: requestId, p_body: body }), 'envío de mensaje');
+    },
+
+    async markRequestMessagesRead(requestId) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('mark_pas_request_messages_read', { p_request_id: requestId }), 'lectura de mensajes');
+    },
+
+    async countUnreadRequestMessages() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('count_my_pas_request_unread_messages'), 'mensajes sin leer');
+    },
+
+    async listUnreadRequestPreviews() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('list_my_pas_request_unread_previews'), 'mensajes nuevos de solicitudes');
+    },
+
+    async updateInstitutionalRequestStatus(requestId, status, response = '') {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('update_pas_request_status', { p_request_id: requestId, p_status: status, p_response: response || null }), 'actualización de solicitud');
+    },
+
+    async countUnassignedInstitutionalRequests() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('count_pas_unassigned_requests'), 'solicitudes sin responsable');
+    },
+
+    async listUnassignedInstitutionalRequestPreviews() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('list_pas_unassigned_request_previews'), 'solicitudes pendientes de primera atención');
+    },
+
+    async listDirectivaOperators() {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('list_pas_directiva_operators'), 'integrantes de Directiva');
+    },
+
+    async transferInstitutionalRequest(requestId, newOwnerId = null) {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('transfer_pas_request', { p_request_id: requestId, p_new_owner: newOwnerId }), 'transferencia de solicitud');
     },
 
     async reviewInstitutionalRequest(requestId, status, response = '') {
