@@ -61,3 +61,7 @@ Consulta `RENOVACION-ETAPA-4.md`. Añade notificaciones dirigidas cuando Directi
 ## Renovación etapas 5 a 8
 
 Consulta `RENOVACION-ETAPAS-5-A-8.md` para los cambios y `docs/PRUEBAS-SEGURIDAD-ETAPAS-5-A-8.md` para la lista de aceptación. Esta entrega no agrega migraciones SQL.
+
+## Renovación · Etapa 9: documentos múltiples
+
+Consulta `RENOVACION-ETAPA-9-DOCUMENTOS-MULTIPLES.md`. Permite hasta 10 archivos por requerimiento documental, con revisión individual por Directiva. Requiere ejecutar una sola vez `supabase/012_multiple_member_document_files.sql` después de confirmar que 010 y 011 ya están aplicadas.

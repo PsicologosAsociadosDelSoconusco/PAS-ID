@@ -240,14 +240,14 @@
     async listMyMemberDocumentRequests() {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.from('member_document_requests')
-        .select('id,title,instructions,due_date,status,requested_at,submitted_at,storage_path,original_filename,mime_type,file_size,reviewed_at,review_notes')
+        .select('id,title,instructions,due_date,status,requested_at,submitted_at,storage_path,original_filename,mime_type,file_size,reviewed_at,review_notes,member_document_files(id,storage_path,original_filename,mime_type,file_size,uploaded_at,status,review_notes)')
         .order('requested_at', { ascending: false }), 'mis documentos solicitados');
     },
 
     async listMemberDocumentRequests() {
       if (!configured) throw new Error('Supabase no está configurado.');
       return unwrap(client.from('member_document_requests')
-        .select('id,member_id,title,instructions,due_date,status,requested_at,submitted_at,storage_path,original_filename,mime_type,file_size,reviewed_at,review_notes,members(full_name,legacy_folio,member_type)')
+        .select('id,member_id,title,instructions,due_date,status,requested_at,submitted_at,storage_path,original_filename,mime_type,file_size,reviewed_at,review_notes,members(full_name,legacy_folio,member_type),member_document_files(id,storage_path,original_filename,mime_type,file_size,uploaded_at,status,review_notes)')
         .order('requested_at', { ascending: false }), 'documentación de integrantes');
     },
 
@@ -258,28 +258,36 @@
       }), 'solicitud de documentación');
     },
 
-    async uploadMyMemberDocument(requestId, file) {
+    async uploadMyMemberDocument(requestId, files) {
       if (!configured) throw new Error('Supabase no está configurado.');
-      if (!file) throw new Error('Selecciona un archivo.');
+      const selected = Array.from(files || []);
+      if (!selected.length) throw new Error('Selecciona al menos un archivo.');
+      if (selected.length > 10) throw new Error('Puedes entregar hasta 10 archivos por requerimiento.');
       const allowed = ['application/pdf','image/jpeg','image/png','image/webp'];
-      if (!allowed.includes(file.type)) throw new Error('El archivo debe ser PDF, JPG, PNG o WEBP.');
-      if (file.size > 10 * 1024 * 1024) throw new Error('El archivo no puede superar 10 MB.');
+      for (const file of selected) {
+        if (!allowed.includes(file.type)) throw new Error(`El archivo ${file.name} debe ser PDF, JPG, PNG o WEBP.`);
+        if (file.size < 1 || file.size > 10 * 1024 * 1024) throw new Error(`El archivo ${file.name} supera el límite de 10 MB o está vacío.`);
+      }
       const request = await unwrap(client.from('member_document_requests').select('id,member_id,status').eq('id', requestId).single(), 'solicitud de documento');
       if (!['pending','changes_requested'].includes(request.status)) throw new Error('Esta solicitud ya no admite una nueva entrega.');
-      const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-      const path = `${request.member_id}/${request.id}/document.${ext}`;
-      await unwrap(client.storage.from('pas-member-documents').upload(path, file, { contentType:file.type, cacheControl:'3600', upsert:true }), 'carga de documento');
+      const uploaded = [];
       try {
-        return await unwrap(client.rpc('submit_my_pas_member_document', {
-          p_request_id: request.id, p_storage_path: path,
-          p_original_filename: String(file.name || `documento.${ext}`).slice(0,255),
-          p_mime_type: file.type, p_file_size: file.size
-        }), 'envío de documento');
+        for (const file of selected) {
+          const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+          const path = `${request.member_id}/${request.id}/${crypto.randomUUID()}.${ext}`;
+          await unwrap(client.storage.from('pas-member-documents').upload(path, file, { contentType:file.type, cacheControl:'3600', upsert:false }), 'carga de documento');
+          uploaded.push({ storage_path:path, original_filename:String(file.name || `documento.${ext}`).slice(0,255), mime_type:file.type, file_size:file.size });
+        }
+        return await unwrap(client.rpc('submit_my_pas_member_documents', { p_request_id:request.id, p_files:uploaded }), 'envío de documentos');
       } catch (error) {
-        // El objeto queda protegido por Storage RLS; si falla el registro, se intenta limpiar.
-        await client.storage.from('pas-member-documents').remove([path]).catch(() => {});
+        if (uploaded.length) await client.storage.from('pas-member-documents').remove(uploaded.map(item=>item.storage_path)).catch(()=>{});
         throw error;
       }
+    },
+
+    async reviewMemberDocumentFile(fileId, decision, notes = '') {
+      if (!configured) throw new Error('Supabase no está configurado.');
+      return unwrap(client.rpc('review_pas_member_document_file', { p_file_id:fileId, p_decision:decision, p_notes:notes || null }), 'revisión de archivo');
     },
 
     async reviewMemberDocumentRequest(requestId, decision, notes = '') {
