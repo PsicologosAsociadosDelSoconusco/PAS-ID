@@ -1056,10 +1056,15 @@ async function loadPublicDirectory() {
   try {
     const rows=await pasBackend.listPublicDirectory({
       search:document.getElementById('publicDirectorySearch')?.value.trim()||'',
-      city:document.getElementById('publicDirectoryCity')?.value.trim()||''
+      city:document.getElementById('publicDirectoryCity')?.value.trim()||'',
+      specialty:document.getElementById('publicDirectorySpecialty')?.value.trim()||''
     });
-    if(!rows.length){target.innerHTML='<p class="muted">No hay perfiles públicos que coincidan con la búsqueda.</p>';return;}
-    target.innerHTML=rows.map(p=>{
+    const modality=document.getElementById('publicDirectoryModality')?.value||'';
+    const filtered=modality?rows.filter(p=>(p.service_modality||'')===modality):rows;
+    const count=document.getElementById('publicDirectoryCount');
+    if(count) count.textContent=`${filtered.length} ${filtered.length===1?'profesional encontrado':'profesionales encontrados'} · Perfiles publicados voluntariamente`;
+    if(!filtered.length){target.innerHTML='<p class="muted">No hay perfiles públicos que coincidan con los filtros seleccionados.</p>';return;}
+    target.innerHTML=filtered.map(p=>{
       const photo=p.photo_path?pasBackend.publicProfilePhotoUrl(p.photo_path):'';
       const map=(p.office_latitude!=null&&p.office_longitude!=null)?`https://www.google.com/maps?q=${encodeURIComponent(p.office_latitude+','+p.office_longitude)}`:'';
       return `<article class="public-professional-card">${photo?`<img src="${escapeHtml(photo)}" alt="" loading="lazy">`:`<div class="public-professional-avatar">${escapeHtml(initials(p.full_name))}</div>`}<div class="public-professional-content"><span class="eyebrow">${escapeHtml(p.member_type||'Integrante PAS')}</span><h3>${escapeHtml(p.full_name)}</h3>${p.specialty?`<b>${escapeHtml(p.specialty)}</b>`:''}<p>${escapeHtml([p.city,p.state].filter(Boolean).join(', '))}</p>${p.about?`<p>${escapeHtml(p.about)}</p>`:''}${p.service_modality?`<small>Atención: ${escapeHtml(p.service_modality)}</small>`:''}${map?`<a href="${map}" target="_blank" rel="noopener">Ver ubicación ↗</a>`:''}</div></article>`;
@@ -1470,8 +1475,12 @@ document.getElementById('openPublicDirectory')?.addEventListener('click',()=>{
   document.getElementById('publicDirectoryPanel').classList.remove('hidden');
   loadPublicDirectory();
 });
-document.getElementById('publicDirectorySearch')?.addEventListener('input',loadPublicDirectory);
-document.getElementById('publicDirectoryCity')?.addEventListener('input',loadPublicDirectory);
+let publicDirectorySearchTimer;
+function schedulePublicDirectorySearch(){window.clearTimeout(publicDirectorySearchTimer);publicDirectorySearchTimer=window.setTimeout(loadPublicDirectory,260);}
+document.getElementById('publicDirectorySearch')?.addEventListener('input',schedulePublicDirectorySearch);
+document.getElementById('publicDirectoryCity')?.addEventListener('input',schedulePublicDirectorySearch);
+document.getElementById('publicDirectorySpecialty')?.addEventListener('input',schedulePublicDirectorySearch);
+document.getElementById('publicDirectoryModality')?.addEventListener('change',loadPublicDirectory);
 document.getElementById('notificationBell')?.addEventListener('click',()=>{
   document.getElementById('notificationPanel').classList.toggle('hidden');
   loadNotificationPanel();

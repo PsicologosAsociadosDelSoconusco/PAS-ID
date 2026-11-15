@@ -54,3 +54,10 @@ Consulta `RENOVACION-ETAPA-2.md` para el centro integral de solicitudes, la asig
 
 ## Renovación PAS ID · Etapa 3
 Consulta `RENOVACION-ETAPA-3.md`. Incluye el repositorio documental privado de integrantes, módulo de gestión de documentación para Directiva y corrección de renderizado del QR en el portal individual.
+
+## Renovación PAS ID · Etapa 4
+Consulta `RENOVACION-ETAPA-4.md`. Añade notificaciones dirigidas cuando Directiva solicita un documento, cuando el integrante entrega el archivo y cuando Directiva aprueba o pide correcciones. También hace más explícito el estado de cada entrega en «Mi expediente». Requiere ejecutar una sola vez `supabase/011_member_document_notifications.sql` después de que la migración 010 esté aplicada.
+
+## Renovación etapas 5 a 8
+
+Consulta `RENOVACION-ETAPAS-5-A-8.md` para los cambios y `docs/PRUEBAS-SEGURIDAD-ETAPAS-5-A-8.md` para la lista de aceptación. Esta entrega no agrega migraciones SQL.

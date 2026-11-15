@@ -279,8 +279,9 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 .public-header-actions{display:flex;align-items:center;gap:10px}
 .public-directory-panel{margin:38px auto 0;max-width:980px;padding:28px 0;border-top:1px solid #e4e9ef}
 .directory-filters{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin:18px 0}
-.directory-filters input,.publish-notification-form input,.publish-notification-form textarea,.notification-publish-row select{width:100%;border:1px solid #dbe2ea;border-radius:10px;padding:12px;background:#fff;color:#173655;font:inherit}
-.public-directory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.directory-filters-advanced{grid-template-columns:2fr 1fr 1.2fr 1.2fr}
+.directory-filters input,.directory-filters select,.publish-notification-form input,.publish-notification-form textarea,.notification-publish-row select{width:100%;border:1px solid #dbe2ea;border-radius:10px;padding:12px;background:#fff;color:#173655;font:inherit}
+.directory-results-meta{display:flex;justify-content:flex-end;margin:-7px 0 12px;color:#8492a1;font-size:11px}.public-directory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
 .public-professional-card{display:flex;gap:14px;padding:16px;border:1px solid #e2e8ef;border-radius:16px;background:#fff;box-shadow:0 8px 22px rgba(20,43,73,.05)}
 .public-professional-card>img,.public-professional-avatar{width:76px;height:76px;flex:0 0 76px;object-fit:cover;border-radius:14px;background:#eaf0f6;display:grid;place-items:center;color:#173b70;font-weight:800}
 .public-professional-content h3{margin:4px 0;font-size:16px;color:#173655}
@@ -482,3 +483,6 @@ button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
 .member-document-actions .document-selected-file{max-width:190px;overflow-wrap:anywhere;color:#546a80;font-size:9px}
 .document-notification-item{background:#fffdf8;border-radius:8px;margin:5px 0;padding:12px 10px!important}
 .document-notification-item.is-unread{border-left:3px solid #e0a428!important;padding-left:10px!important}
+
+@media(max-width:760px){.directory-filters-advanced{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.directory-filters-advanced{grid-template-columns:1fr}.directory-results-meta{justify-content:flex-start}}
