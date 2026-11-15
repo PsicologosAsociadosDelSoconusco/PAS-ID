@@ -250,7 +250,7 @@ async function generateCredentialPrintPdf() {
       const identifier = member.publicIdentifier || member.id;
       const verifyUrl = buildVerificationUrl(identifier);
       let qr = '';
-      if (window.QRCode?.toDataURL) qr = await window.QRCode.toDataURL(verifyUrl, {width:420, margin:2, color:{dark:'#142b49',light:'#ffffff'}});
+      if (window.QRCode?.toDataURL) qr = await window.QRCode.toDataURL(verifyUrl, {width:420, margin:1, color:{dark:'#142b49',light:'#ffffff'}});
       const photoPath = profile.photo_path;
       const photoUrl = photoPath && pasBackend?.publicProfilePhotoUrl ? pasBackend.publicProfilePhotoUrl(photoPath) : '';
       const issued = formatDate(member.issued);
@@ -263,7 +263,38 @@ async function generateCredentialPrintPdf() {
     const pages = [];
     for (let i=0;i<cards.length;i+=3) pages.push(`<div class="print-page">${cards.slice(i,i+3).join('')}</div>`);
     const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Credenciales PAS · Impresión</title><style>
-      @page{size:letter portrait;margin:8mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#142b49;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:100%;height:263.4mm;display:flex;flex-direction:column;justify-content:space-between;align-items:center;page-break-after:always;break-after:page}.print-page:last-child{page-break-after:auto;break-after:auto}.credential-pair{width:107.96mm;height:85.6mm;display:flex;flex:0 0 85.6mm;gap:0;position:relative;page-break-inside:avoid;break-inside:avoid}.credential-face{width:53.98mm;height:85.6mm;position:relative;overflow:hidden;border:.25mm solid #d4d9df;background:#fff;text-align:center;padding:4mm 3mm 3mm}.pas-logo{width:31mm;height:19mm;object-fit:contain;margin:0 auto 1mm;display:block}.credential-front{background:#fff}.stripe{position:absolute;top:0;bottom:0;width:9mm;z-index:0}.stripe-left{left:0;background:linear-gradient(160deg,#173b70 0 62%,#e0a626 62% 100%);clip-path:polygon(0 0,100% 0,42% 57%,100% 70%,0 100%)}.credential-front>*:not(.stripe),.credential-back>*:not(.stripe){position:relative;z-index:1}.photo-frame{width:28mm;height:31mm;margin:0 auto 2mm;border:1.5mm solid #142d59;border-radius:3mm;overflow:hidden;background:#eef1f5;display:flex;align-items:center;justify-content:center}.member-photo{width:100%;height:100%;object-fit:cover}.photo-placeholder{font-size:18pt;font-weight:bold;color:#173b70}.credential-front h2{font-size:7.2pt;line-height:1.15;margin:1mm 0 1.5mm;font-weight:800;overflow-wrap:anywhere}.name-rule{height:1mm;background:#142d59;width:70%;margin:0 auto 1.5mm;border-radius:2mm}.credential-front h3{font-size:8pt;margin:0 0 2mm}.folio{background:#5b8b3e;color:white;font-weight:bold;letter-spacing:2mm;font-size:11pt;padding:3mm 1mm;border-radius:3mm;margin:0 2mm 2mm}.dates{display:flex;flex-direction:column;gap:1mm;font-size:7.3pt;text-align:left;padding-left:9mm}.credential-back{padding:4mm 4mm 3mm}.stripe-right{right:0;background:linear-gradient(205deg,#e0a626 0 24%,#173b70 24% 100%);clip-path:polygon(100% 0,100% 100%,0 80%,35% 48%,0 0)}.credential-back .pas-logo{width:26mm;height:16mm;margin-bottom:1mm}.credential-back h2{font-size:8pt;margin:0 0 1.5mm}.credential-back p{font-size:5.25pt;line-height:1.25;text-align:justify;margin:0 1mm 2mm}.credential-back h3{font-size:8pt;margin:1.2mm 0 .5mm}.contact-email{font-size:6.5pt}.verify-caption{font-size:5.6pt;margin-bottom:1mm}.print-qr{width:24mm;height:24mm;object-fit:contain;border:1mm solid #5b8b3e;border-radius:2mm;padding:1mm}.qr-fallback{font-size:4pt;overflow-wrap:anywhere}.print-page:after{content:'';position:absolute}
+      @page{size:letter portrait;margin:8mm}
+      *{box-sizing:border-box}
+      html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#142b49;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .print-page{width:100%;height:263.4mm;display:flex;flex-direction:column;justify-content:space-between;align-items:center;page-break-after:always;break-after:page}
+      .print-page:last-child{page-break-after:auto;break-after:auto}
+      .credential-pair{width:107.96mm;height:85.6mm;display:flex;flex:0 0 85.6mm;gap:0;position:relative;page-break-inside:avoid;break-inside:avoid}
+      .credential-face{width:53.98mm;height:85.6mm;position:relative;overflow:hidden;border:.25mm solid #d4d9df;background:#fff;text-align:center;padding:3mm 3.5mm 2.5mm}
+      .pas-logo{width:23mm;height:13.5mm;object-fit:contain;margin:0 auto 1mm;display:block}
+      .credential-front{background:#fff}
+      .stripe{position:absolute;top:0;bottom:0;width:8mm;z-index:0}
+      .stripe-left{left:0;background:linear-gradient(160deg,#173b70 0 62%,#e0a626 62% 100%);clip-path:polygon(0 0,100% 0,42% 57%,100% 70%,0 100%)}
+      .credential-front>*:not(.stripe),.credential-back>*:not(.stripe){position:relative;z-index:1}
+      .photo-frame{width:22mm;height:24mm;margin:0 auto 1.5mm;border:1.2mm solid #142d59;border-radius:2.8mm;overflow:hidden;background:#eef1f5;display:flex;align-items:center;justify-content:center}
+      .member-photo{width:100%;height:100%;object-fit:cover}
+      .photo-placeholder{font-size:16pt;font-weight:bold;color:#173b70}
+      .credential-front h2{font-size:7pt;line-height:1.12;margin:1mm 0 1mm;font-weight:800;overflow-wrap:anywhere}
+      .name-rule{height:.8mm;background:#142d59;width:68%;margin:0 auto 1.2mm;border-radius:2mm}
+      .credential-front h3{font-size:7.2pt;line-height:1.1;margin:0 0 1.5mm}
+      .folio{background:#5b8b3e;color:white;font-weight:bold;letter-spacing:1.8mm;font-size:10pt;padding:2.2mm 1mm;border-radius:3mm;margin:0 2mm 1.5mm}
+      .dates{display:flex;flex-direction:column;gap:.8mm;font-size:6.4pt;line-height:1.15;text-align:left;padding-left:6mm}
+      .dates span{display:block;white-space:nowrap}
+      .credential-back{padding:3mm 5mm 2mm}
+      .stripe-right{right:0;background:linear-gradient(205deg,#e0a626 0 24%,#173b70 24% 100%);clip-path:polygon(100% 0,100% 100%,0 80%,35% 48%,0 0)}
+      .credential-back .pas-logo{width:21mm;height:12mm;margin-bottom:.8mm}
+      .credential-back h2{font-size:7.5pt;line-height:1.1;margin:0 0 1.5mm}
+      .credential-back p{font-size:5.1pt;line-height:1.22;text-align:left;margin:0 1mm 1.5mm;overflow-wrap:break-word;hyphens:auto}
+      .credential-back h3{font-size:7.5pt;line-height:1.05;margin:1.1mm 0 .5mm}
+      .contact-email{font-size:6.2pt;line-height:1.1}
+      .verify-caption{font-size:5.1pt;line-height:1.1;margin-bottom:.5mm}
+      .print-qr{width:17mm;height:17mm;object-fit:contain;border:.7mm solid #5b8b3e;border-radius:1.5mm;padding:.5mm}
+      .qr-fallback{font-size:4pt;overflow-wrap:anywhere}
+      .print-page:after{content:'';position:absolute}
       @media screen{body{background:#e9edf2;padding:12mm}.print-page{background:white;box-shadow:0 2mm 8mm #0002;margin:0 auto 10mm;padding:0}.print-page:last-child{margin-bottom:0}}
       @media print{body{background:white}.print-page{height:263.4mm}.credential-pair{margin:0}}
     </style></head><body>${pages.join('')}<script>window.addEventListener('load',()=>{const imgs=[...document.images];Promise.all(imgs.map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r}))).then(()=>setTimeout(()=>window.print(),350));});</script></body></html>`;

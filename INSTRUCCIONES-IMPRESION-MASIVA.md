@@ -25,3 +25,11 @@ El módulo está dentro de **Credenciales → Impresión masiva de credenciales*
 
 ## Importante
 El módulo no cambia folios, vigencias, estados ni registros de credenciales. Solo prepara un documento de impresión a partir de los miembros activos del directorio. La carga de fotografías depende de que la URL pública del almacenamiento de fotos esté accesible para el navegador.
+
+
+## Ajustes visuales de impresión
+- Se redujeron el logotipo y la fotografía para equilibrar el frente.
+- Se reorganizó el frente para dejar espacio visible a expedición y vigencia.
+- Se ajustó el reverso para evitar que los términos y condiciones queden tapados.
+- El QR conserva la ruta de verificación existente (`buildVerificationUrl`) y la biblioteca QR ya utilizada por PAS ID; no se incorpora otro sistema.
+- Las fechas se leen de los campos `issued` y `expires` del registro. La impresión no modifica fechas ni vigencias.
