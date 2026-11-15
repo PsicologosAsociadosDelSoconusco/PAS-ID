@@ -2581,3 +2581,22 @@ if(adminReviewPanel && 'MutationObserver' in window){
   const observer=new MutationObserver(()=>{const shell=document.getElementById('appShell');if(shell&&!shell.classList.contains('hidden'))loadAdminProfessionalReviews();});
   const shell=document.getElementById('appShell');if(shell){observer.observe(shell,{attributes:true,attributeFilter:['class']});if(!shell.classList.contains('hidden'))loadAdminProfessionalReviews();}
 }
+
+
+// Acceso directo al directorio público desde el sitio institucional PAS.
+(function initializePublicDirectoryLink() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('directory') !== '1') return;
+  document.getElementById('loginScreen')?.classList.add('hidden');
+  document.getElementById('passwordSetupScreen')?.classList.add('hidden');
+  document.getElementById('appShell')?.classList.add('hidden');
+  document.getElementById('memberPortalScreen')?.classList.add('hidden');
+  document.getElementById('publicScreen')?.classList.remove('hidden');
+  document.getElementById('publicVerifyForm')?.classList.add('hidden');
+  document.getElementById('publicVerifyResult')?.classList.add('hidden');
+  document.querySelector('.verify-main>h1')?.classList.add('hidden');
+  document.querySelector('.verify-main>p')?.classList.add('hidden');
+  document.getElementById('publicDirectoryPanel')?.classList.remove('hidden');
+  document.querySelector('.verify-main')?.classList.add('directory-open');
+  loadPublicDirectory();
+})();
