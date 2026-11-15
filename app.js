@@ -8,6 +8,7 @@ const backendUnavailable = backendConfigured && !connectedMode;
 let signedInEmail = '';
 let signedInRole = '';
 let currentMemberProfile = null;
+let returnToMemberPortal = false;
 let selectedMemberId = null;
 let selectedCredentialMemberId = null;
 let pendingRandomId = null;
@@ -665,6 +666,53 @@ document.getElementById('officeMapLocateButton')?.addEventListener('click',()=>{
     {enableHighAccuracy:true,timeout:12000,maximumAge:60000});
 });
 
+const memberViewLabels = {dashboard:'Inicio',credential:'Mi credencial',expediente:'Mi expediente',profile:'Mi perfil',directory:'Directorio profesional',requests:'Mis solicitudes',events:'Eventos y asistencia',certificates:'Mis constancias',notifications:'Notificaciones',academy:'Academia PAS'};
+function showMemberView(viewName) {
+  if (viewName === 'directory') { openMemberDirectory(); return; }
+  if (viewName === 'notifications') {
+    document.querySelectorAll('.member-nav-item[data-member-view]').forEach(button => button.classList.toggle('active', button.dataset.memberView === 'notifications'));
+    document.getElementById('memberCurrentSection').textContent = 'Notificaciones';
+    document.getElementById('memberNotificationPanel').classList.remove('hidden');
+    document.getElementById('memberSidebar').classList.remove('open');
+    document.getElementById('memberSidebarScrim').classList.remove('show');
+    loadMemberNotificationPanel();
+    return;
+  }
+  const target = document.getElementById(`memberView${viewName.charAt(0).toUpperCase()}${viewName.slice(1)}`);
+  if (!target) return;
+  document.querySelectorAll('.member-view').forEach(view => view.classList.remove('active'));
+  target.classList.add('active');
+  document.querySelectorAll('.member-nav-item[data-member-view]').forEach(button => button.classList.toggle('active', button.dataset.memberView === viewName));
+  document.getElementById('memberCurrentSection').textContent = memberViewLabels[viewName] || 'Portal PAS';
+  document.getElementById('memberSidebar').classList.remove('open');
+  document.getElementById('memberSidebarScrim').classList.remove('show');
+  document.getElementById('memberNotificationPanel').classList.add('hidden');
+  if (viewName === 'profile') { initializeOfficeLocationMap(); setTimeout(()=>officeLocationMap?.invalidateSize(),160); }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function openMemberDirectory() {
+  returnToMemberPortal = true;
+  document.getElementById('memberPortalScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appShell').classList.add('hidden');
+  document.getElementById('publicScreen').classList.remove('hidden');
+  document.getElementById('backToLogin').textContent = '← Volver al portal';
+  document.getElementById('publicDirectoryPanel').classList.remove('hidden');
+  loadPublicDirectory();
+}
+async function refreshMemberNotificationDot() {
+  const dot = document.getElementById('memberNotificationUnreadDot');
+  if (!dot) return;
+  try { const rows = await pasBackend.listNotifications(); dot.classList.toggle('has-unread', rows.some(item => !item.read_at)); }
+  catch (error) { dot.classList.remove('has-unread'); console.warn('No se pudo consultar el estado de notificaciones.', error); }
+}
+async function refreshAdminNotificationDot() {
+  const dot = document.getElementById('notificationUnreadDot');
+  if (!dot) return;
+  try { const rows = await pasBackend.listNotifications(); dot.classList.toggle('has-unread', rows.some(item => !item.read_at)); }
+  catch (error) { dot.classList.remove('has-unread'); console.warn('No se pudo consultar el estado de notificaciones.', error); }
+}
+
 function showMemberPortal(profile) {
   currentMemberProfile = profile;
   const member = profile.member || {};
@@ -678,7 +726,39 @@ function showMemberPortal(profile) {
   document.getElementById('appShell').classList.add('hidden');
   document.getElementById('memberPortalScreen').classList.remove('hidden');
   document.getElementById('memberPortalName').textContent = member.full_name || 'Afiliado PAS';
-  document.getElementById('memberPortalTitle').innerHTML = 'Mi expediente <em>institucional.</em>';
+  document.getElementById('memberPortalTitle').innerHTML = 'Bienvenido a <em>PAS ID.</em>';
+  const fullName = member.full_name || 'Integrante PAS';
+  const dashboardName = document.getElementById('memberDashboardName');
+  const dashboardNameCard = document.getElementById('memberDashboardNameCard');
+  const dashboardFolio = document.getElementById('memberDashboardFolio');
+  const credentialName = document.getElementById('memberCredentialName');
+  const credentialType = document.getElementById('memberCredentialType');
+  const credentialIssued = document.getElementById('memberCredentialIssued');
+  const credentialExpires = document.getElementById('memberCredentialExpires');
+  const credentialStatus = document.getElementById('memberCredentialStatus');
+  const credentialIdCopy = document.getElementById('memberCredentialIdCopy');
+  if (dashboardName) dashboardName.textContent = fullName;
+  if (dashboardNameCard) dashboardNameCard.textContent = fullName;
+  if (dashboardFolio) dashboardFolio.textContent = `Folio ${member.legacy_folio || identifier}`;
+  if (credentialName) credentialName.textContent = fullName;
+  if (credentialType) credentialType.textContent = String(member.member_type || (signedInRole === 'colaborador' ? 'Colaborador' : 'Afiliado')).toLocaleUpperCase('es-MX');
+  if (credentialIssued) credentialIssued.textContent = spanishDateFromIso(member.issued_on);
+  if (credentialExpires) credentialExpires.textContent = spanishDateFromIso(credential.expires_on || member.expires_on);
+  if (credentialStatus) credentialStatus.textContent = `● ${String(status).toLocaleUpperCase('es-MX')}`;
+  if (credentialIdCopy) credentialIdCopy.textContent = identifier;
+  const expedienteValues = {
+    memberExpedienteName: fullName,
+    memberExpedienteType: member.member_type || (signedInRole === 'colaborador' ? 'Colaborador' : 'Afiliado'),
+    memberExpedienteIssued: spanishDateFromIso(member.issued_on),
+    memberExpedienteExpires: spanishDateFromIso(credential.expires_on || member.expires_on),
+    memberExpedienteSpecialty: detail.specialty || 'Por completar',
+    memberExpedienteLicense: detail.professional_license || 'Por completar',
+    memberExpedienteCredential: identifier,
+    memberExpedienteFolio: `Folio / identificador: ${member.legacy_folio || identifier}`
+  };
+  Object.entries(expedienteValues).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.textContent=value;});
+  const expedienteStatus=document.getElementById('memberExpedienteStatus');
+  if(expedienteStatus){expedienteStatus.textContent=status;expedienteStatus.className=`status-pill ${statusClass(status)}`;}
   document.getElementById('memberPortalAccountEmail').textContent = signedInEmail || '';
   document.getElementById('memberPortalType').textContent = member.member_type || (signedInRole === 'colaborador' ? 'Colaborador' : 'Afiliado');
   document.getElementById('memberPortalFolio').textContent = `Folio / identificador: ${member.legacy_folio || identifier}`;
@@ -712,6 +792,10 @@ function showMemberPortal(profile) {
   const approvedPhotoUrl = detail.photo_path ? pasBackend.publicProfilePhotoUrl(detail.photo_path) : '';
   if (photoPreview) { photoPreview.src = approvedPhotoUrl; photoPreview.classList.toggle('hidden', !approvedPhotoUrl); }
   if (photoPlaceholder) photoPlaceholder.classList.toggle('hidden', Boolean(approvedPhotoUrl));
+  const credentialPhoto = document.getElementById('memberCredentialPhoto');
+  const credentialMonogram = document.getElementById('memberCredentialMonogram');
+  if (credentialPhoto) { credentialPhoto.src = approvedPhotoUrl; credentialPhoto.classList.toggle('hidden', !approvedPhotoUrl); }
+  if (credentialMonogram) { credentialMonogram.textContent = initials(fullName); credentialMonogram.classList.toggle('hidden', Boolean(approvedPhotoUrl)); }
   const photoInput = document.getElementById('profilePhotoFile');
   const photoConsent = document.getElementById('profilePhotoConsent');
   if (photoInput) photoInput.value = '';
@@ -731,10 +815,11 @@ function showMemberPortal(profile) {
     profileAbout: detail.about || ''
   };
   Object.entries(fields).forEach(([id,value]) => { const el=document.getElementById(id); if (!el) return; if (el.type==='checkbox') el.checked=Boolean(value); else el.value=value; });
-  initializeOfficeLocationMap();
   loadMyInstitutionalRequests();
   loadMemberEvents();
   loadMyCertificates();
+  refreshMemberNotificationDot();
+  showMemberView('dashboard');
 }
 async function activateAuthenticatedRole(role, session) {
   signedInRole = role || '';
@@ -803,6 +888,7 @@ async function loadNotificationPanel() {
 }
 
 function openPublicScreen() {
+  returnToMemberPortal = false;
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('memberPortalScreen').classList.add('hidden');
   document.getElementById('appShell').classList.add('hidden');
@@ -815,6 +901,7 @@ function showApp() {
   document.getElementById('appShell').classList.remove('hidden');
   renderAll();
   showView('overview');
+  refreshAdminNotificationDot();
 }
 function showPasswordSetupScreen(message = '') {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -907,9 +994,18 @@ document.getElementById('togglePassword').addEventListener('click', () => {
   input.type = input.type === 'password' ? 'text' : 'password';
 });
 document.getElementById('publicAccess').addEventListener('click', openPublicScreen);
+document.getElementById('loginDirectoryAccess')?.addEventListener('click', () => { returnToMemberPortal=false; openPublicScreen(); document.getElementById('publicDirectoryPanel').classList.remove('hidden'); loadPublicDirectory(); });
 document.getElementById('backToLogin').addEventListener('click', () => {
   document.getElementById('publicScreen').classList.add('hidden');
-  document.getElementById('loginScreen').classList.remove('hidden');
+  if (returnToMemberPortal && currentMemberProfile) {
+    returnToMemberPortal = false;
+    document.getElementById('backToLogin').textContent = '← Inicio';
+    document.getElementById('memberPortalScreen').classList.remove('hidden');
+    showMemberView('dashboard');
+  } else {
+    document.getElementById('backToLogin').textContent = '← Inicio';
+    document.getElementById('loginScreen').classList.remove('hidden');
+  }
 });
 document.getElementById('profilePhotoFile')?.addEventListener('change', event => {
   const file = event.target.files?.[0];
@@ -985,6 +1081,21 @@ document.getElementById('institutionalRequestsAdminList').addEventListener('clic
   button.disabled = true;
   try { await pasBackend.reviewInstitutionalRequest(id, status, response); await loadInstitutionalRequestsAdmin(); showToast('La solicitud fue actualizada.'); }
   catch (error) { showToast(error.message || 'No se pudo actualizar la solicitud.'); button.disabled = false; }
+});
+
+document.querySelectorAll('.member-nav-item[data-member-view], [data-member-view].member-shortcut, .member-shortcut-grid [data-member-view], .member-dashboard-credential [data-member-view]').forEach(button => button.addEventListener('click', () => showMemberView(button.dataset.memberView)));
+document.getElementById('memberSidebarToggle')?.addEventListener('click',()=>{
+  const root=document.getElementById('memberPortalScreen');
+  if (window.matchMedia('(max-width: 820px)').matches) { document.getElementById('memberSidebar').classList.add('open'); document.getElementById('memberSidebarScrim').classList.add('show'); }
+  else root.classList.toggle('is-sidebar-collapsed');
+});
+document.getElementById('memberSidebarClose')?.addEventListener('click',()=>{document.getElementById('memberSidebar').classList.remove('open');document.getElementById('memberSidebarScrim').classList.remove('show');});
+document.getElementById('memberSidebarScrim')?.addEventListener('click',()=>{document.getElementById('memberSidebar').classList.remove('open');document.getElementById('memberSidebarScrim').classList.remove('show');});
+document.getElementById('memberDashboardNotifications')?.addEventListener('click',()=>{document.getElementById('memberNotificationPanel').classList.remove('hidden');loadMemberNotificationPanel();});
+document.getElementById('toggleAdminSidebar')?.addEventListener('click',()=>{
+  const shell=document.getElementById('appShell');
+  if (window.matchMedia('(max-width: 820px)').matches) { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarScrim').classList.add('show'); }
+  else shell.classList.toggle('sidebar-collapsed');
 });
 
 document.getElementById('memberNotificationBell')?.addEventListener('click',()=>{

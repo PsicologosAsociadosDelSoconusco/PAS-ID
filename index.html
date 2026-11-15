@@ -35,6 +35,7 @@
         <button class="btn btn-primary login-button" id="loginSubmit">Iniciar sesión <span>→</span></button>
         <p class="login-hint"><span class="info-dot">i</span> Acceso protegido para cuentas institucionales autorizadas.</p>
         <div class="public-access-card"><div><strong>¿Necesitas comprobar una credencial?</strong><span>Consulta el estado de una membresía sin iniciar sesión.</span></div><button class="text-button" id="publicAccess">Verificar credencial ↗</button></div>
+        <button id="loginDirectoryAccess" class="login-directory-access" type="button">⌕ Consultar directorio profesional</button>
       </div>
       <div class="login-footer"><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">← Sitio institucional PAS</a><span>© 2026 Psicólogos Asociados del Soconusco</span></div>
     </div>
@@ -68,35 +69,105 @@
   </section>
 
   <section id="memberPortalScreen" class="member-portal hidden" aria-labelledby="memberPortalTitle">
-    <header class="member-portal-header">
-      <a class="brand-lockup" href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>PORTAL DEL AFILIADO</small></div></a>
-      <div class="member-portal-account"><span id="memberPortalAccountEmail"></span><button type="button" class="icon-button member-notification-trigger" id="memberNotificationBell" aria-label="Notificaciones">♧<i id="memberNotificationUnreadDot"></i></button><button type="button" class="btn btn-ghost" id="memberSignOutButton">Salir</button></div>
-    </header>
-    <section id="memberNotificationPanel" class="member-notification-panel hidden"><div class="notification-panel-head"><b>Notificaciones</b><button type="button" id="closeMemberNotificationPanel">×</button></div><div id="memberNotificationList" class="notification-list"><p class="muted">Cargando…</p></div></section>
-    <main class="member-portal-main">
-      <div class="member-portal-welcome"><div><span class="eyebrow">ESPACIO PERSONAL · PAS</span><h1 id="memberPortalTitle">Mi expediente <em>institucional.</em></h1><p>Consulta tu información, tu credencial digital y el estado de tu membresía.</p></div><span class="member-portal-type" id="memberPortalType">Afiliado</span></div>
-      <section class="member-portal-grid">
-        <article class="member-portal-card member-portal-identity">
-          <div class="member-portal-card-head"><span class="eyebrow">EXPEDIENTE DIGITAL</span><span id="memberPortalStatus" class="status-pill status-active">Activo</span></div>
+    <aside class="member-sidebar" id="memberSidebar" aria-label="Navegación del portal">
+      <div class="member-sidebar-brand"><img src="assets/pas-logo.png" alt="PAS"><div class="member-sidebar-brand-copy"><strong>PAS <span>ID</span></strong><small>PORTAL DEL INTEGRANTE</small></div><button type="button" id="memberSidebarClose" class="member-sidebar-close" aria-label="Cerrar menú">×</button></div>
+      <div class="member-workspace-label">ESPACIO PERSONAL</div>
+      <nav class="member-main-nav" aria-label="Menú del integrante">
+        <button type="button" class="member-nav-item active" data-member-view="dashboard"><span class="member-nav-icon">▦</span><span class="member-nav-label">Inicio</span></button>
+        <button type="button" class="member-nav-item" data-member-view="credential"><span class="member-nav-icon">▤</span><span class="member-nav-label">Mi credencial</span></button>
+        <button type="button" class="member-nav-item" data-member-view="expediente"><span class="member-nav-icon">▣</span><span class="member-nav-label">Mi expediente</span></button>
+        <button type="button" class="member-nav-item" data-member-view="profile"><span class="member-nav-icon">◉</span><span class="member-nav-label">Mi perfil</span></button>
+        <button type="button" class="member-nav-item" data-member-view="directory"><span class="member-nav-icon">⌕</span><span class="member-nav-label">Directorio profesional</span></button>
+        <button type="button" class="member-nav-item" data-member-view="requests"><span class="member-nav-icon">✉</span><span class="member-nav-label">Mis solicitudes</span></button>
+        <button type="button" class="member-nav-item" data-member-view="events"><span class="member-nav-icon">▦</span><span class="member-nav-label">Eventos y asistencia</span></button>
+        <button type="button" class="member-nav-item" data-member-view="certificates"><span class="member-nav-icon">▤</span><span class="member-nav-label">Mis constancias</span></button>
+        <button type="button" class="member-nav-item" data-member-view="notifications"><span class="member-nav-icon">♧</span><span class="member-nav-label">Notificaciones</span></button>
+      </nav>
+      <div class="member-sidebar-bottom"><button type="button" class="member-nav-item member-academy-nav" data-member-view="academy"><span class="member-nav-icon">✦</span><span class="member-nav-label">Academia PAS <small>Próximamente</small></span></button><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener" class="member-sidebar-site">Sitio institucional ↗</a><div class="member-sidebar-version">PAS ID · Identidad institucional</div></div>
+    </aside>
+    <button type="button" class="member-sidebar-scrim" id="memberSidebarScrim" aria-label="Cerrar menú"></button>
+    <div class="member-portal-workspace">
+      <header class="member-portal-header">
+        <div class="member-header-left"><button type="button" id="memberSidebarToggle" class="member-sidebar-toggle" aria-label="Contraer o expandir menú">☰</button><div class="member-header-section"><span class="eyebrow">PORTAL PAS</span><b id="memberCurrentSection">Inicio</b></div></div>
+        <div class="member-portal-account"><span id="memberPortalAccountEmail"></span><button type="button" class="icon-button member-notification-trigger" id="memberNotificationBell" aria-label="Notificaciones" title="Notificaciones">♧<i id="memberNotificationUnreadDot"></i></button><button type="button" class="btn btn-ghost" id="memberSignOutButton">Salir</button></div>
+      </header>
+      <section id="memberNotificationPanel" class="member-notification-panel hidden"><div class="notification-panel-head"><b>Notificaciones</b><button type="button" id="closeMemberNotificationPanel">×</button></div><div id="memberNotificationList" class="notification-list"><p class="muted">Cargando…</p></div></section>
+      <main class="member-portal-main" id="memberPortalMain">
+      <section class="member-view active" id="memberViewDashboard" aria-labelledby="memberPortalTitle">
+        <div class="member-portal-welcome"><div><span class="eyebrow">ESPACIO PERSONAL · PAS</span><h1 id="memberPortalTitle">Bienvenido a <em>PAS ID.</em></h1><p>Hola, <strong id="memberDashboardName">integrante PAS</strong>. Aquí tienes tu identidad y actividad institucional.</p></div><span class="member-portal-type" id="memberPortalType">Afiliado</span></div>
+        <div class="member-dashboard-grid">
+          <div class="member-dashboard-identity"><article class="member-portal-card member-portal-identity">
+          <div class="member-portal-card-head"><span class="eyebrow">ESTADO DE MEMBRESÍA</span><span id="memberPortalStatus" class="status-pill status-active">Activo</span></div>
           <h2 id="memberPortalName">—</h2>
           <p class="member-portal-folio" id="memberPortalFolio">—</p>
           <div class="member-portal-facts"><div><span>FECHA DE INGRESO</span><b id="memberPortalIssued">—</b></div><div><span>VIGENCIA</span><b id="memberPortalExpires">—</b></div><div><span>ESPECIALIDAD</span><b id="memberPortalSpecialty">Por completar</b></div><div><span>CÉDULA PROFESIONAL</span><b id="memberPortalLicense">Por completar</b></div></div>
-        </article>
-        <article class="member-portal-card member-portal-credential">
-          <div class="member-portal-card-head"><span class="eyebrow">CREDENCIAL DIGITAL</span><span class="credential-live-label">VERIFICABLE EN LÍNEA</span></div>
-          <div class="member-credential-row"><div><span>IDENTIFICADOR</span><b id="memberPortalCredential">—</b></div><button class="btn btn-outline" id="copyMemberCredential" type="button">Copiar</button></div>
-          <div class="member-qr-area"><canvas id="memberPortalQrCanvas" width="168" height="168" aria-label="Código QR de verificación"></canvas><div><b>Tu código de verificación</b><p>El QR abre la consulta pública de tu credencial. No contiene datos personales privados.</p><a id="memberPortalVerifyLink" href="#" target="_blank" rel="noopener">Abrir verificación pública ↗</a></div></div>
+        </article></div>
+          <article class="member-portal-card member-dashboard-credential">
+            <div class="member-portal-card-head"><span class="eyebrow">MI CREDENCIAL DIGITAL</span><span class="credential-live-label">VERIFICABLE EN LÍNEA</span></div>
+            <div class="member-dashboard-card-preview"><img src="assets/pas-logo.png" alt=""/><div><b id="memberDashboardNameCard">Integrante PAS</b><span id="memberDashboardFolio">Folio —</span></div><span class="member-dashboard-card-mark">PAS</span></div>
+            <div class="member-dashboard-credential-actions"><span>Tu identificación institucional está disponible.</span><button type="button" class="btn btn-primary" data-member-view="credential">Ver credencial <span>→</span></button></div>
+          </article>
+        </div>
+        <div class="member-shortcut-grid">
+          <button type="button" data-member-view="profile"><span class="member-shortcut-icon">◉</span><span><b>Mi perfil</b><small>Datos profesionales y consultorio</small></span><i>→</i></button>
+          <button type="button" data-member-view="requests"><span class="member-shortcut-icon">✉</span><span><b>Mis solicitudes</b><small>Atención y seguimiento de PAS</small></span><i>→</i></button>
+          <button type="button" data-member-view="events"><span class="member-shortcut-icon">▦</span><span><b>Eventos y asistencia</b><small>Participación en actividades</small></span><i>→</i></button>
+          <button type="button" data-member-view="certificates"><span class="member-shortcut-icon">▤</span><span><b>Mis constancias</b><small>Documentos emitidos por PAS</small></span><i>→</i></button>
+        </div>
+        <article class="member-portal-card member-dashboard-activity"><div class="member-portal-section-head"><div><span class="eyebrow">TU COMUNIDAD</span><h2>Actividad institucional</h2><p>Consulta eventos, avisos y respuestas a tus solicitudes desde el menú.</p></div><button type="button" class="text-button" id="memberDashboardNotifications">Ver notificaciones →</button></div></article>
+      </section>
+
+      <section class="member-view" id="memberViewCredential" aria-labelledby="memberCredentialHeading">
+        <div class="member-page-heading"><div><span class="eyebrow">IDENTIDAD DIGITAL · PAS</span><h1 id="memberCredentialHeading">Mi <em>credencial.</em></h1><p>Tu identificación institucional personal e intransferible.</p></div><span class="credential-live-label">VERIFICABLE EN LÍNEA</span></div>
+        <div class="member-credential-showcase">
+          <div class="member-credential-pair">
+            <article class="member-credential-face member-credential-front">
+              <div class="credential-edge credential-edge-left"></div><div class="credential-edge credential-edge-right"></div>
+              <img class="member-credential-logo" src="assets/pas-logo.png" alt="Logotipo PAS">
+              <div class="member-credential-photo-wrap"><img id="memberCredentialPhoto" alt="Fotografía del integrante" class="hidden"><span id="memberCredentialMonogram">PAS</span></div>
+              <h2 id="memberCredentialName">Integrante PAS</h2><p class="member-credential-type" id="memberCredentialType">INTEGRANTE PAS</p>
+              <div class="member-credential-folio">FOLIO <b id="memberPortalCredential">—</b></div>
+              <div class="member-credential-dates"><span>Expedición: <b id="memberCredentialIssued">—</b></span><span>Vigencia: <b id="memberCredentialExpires">—</b></span></div>
+              <div class="member-credential-status" id="memberCredentialStatus">● ACTIVA</div>
+            </article>
+            <article class="member-credential-face member-credential-back">
+              <div class="credential-edge credential-edge-back"></div><img class="member-credential-logo" src="assets/pas-logo.png" alt="Logotipo PAS">
+              <h3>TÉRMINOS Y VERIFICACIÓN</h3>
+              <p>Esta credencial es personal e intransferible. Su validez está sujeta al estado y vigencia de la membresía en los registros institucionales de PAS.</p>
+              <div class="member-credential-qr"><canvas id="memberPortalQrCanvas" width="168" height="168" aria-label="Código QR de verificación"></canvas><div><b>Verificación pública</b><span>Escanea el código para consultar el estado de la credencial.</span><a id="memberPortalVerifyLink" href="#" target="_blank" rel="noopener">Abrir verificación ↗</a></div></div>
+            </article>
+          </div>
+          <div class="member-credential-tools"><div><span class="eyebrow">IDENTIFICADOR DIGITAL</span><b id="memberCredentialIdCopy">—</b></div><button class="btn btn-outline" id="copyMemberCredential" type="button">Copiar folio</button></div>
+          <p class="member-credential-note">El código QR contiene únicamente un enlace de consulta pública. No expone datos privados de tu expediente.</p>
+        </div>
+      </section>
+
+      <section class="member-view" id="memberViewExpediente" aria-labelledby="memberExpedienteHeading">
+        <div class="member-page-heading"><div><span class="eyebrow">REGISTRO INSTITUCIONAL · PAS</span><h1 id="memberExpedienteHeading">Mi <em>expediente.</em></h1><p>Consulta la información principal de tu registro y el estado de tu membresía.</p></div></div>
+        <article class="member-portal-card member-expediente-card">
+          <div class="member-portal-card-head"><span class="eyebrow">EXPEDIENTE DIGITAL</span><span id="memberExpedienteStatus" class="status-pill status-active">Activo</span></div>
+          <h2 id="memberExpedienteName">Integrante PAS</h2><p class="member-portal-folio" id="memberExpedienteFolio">Folio / identificador: —</p>
+          <div class="member-expediente-facts">
+            <div><span>TIPO DE INTEGRANTE</span><b id="memberExpedienteType">—</b></div>
+            <div><span>FECHA DE INGRESO</span><b id="memberExpedienteIssued">—</b></div>
+            <div><span>VIGENCIA</span><b id="memberExpedienteExpires">—</b></div>
+            <div><span>ESPECIALIDAD</span><b id="memberExpedienteSpecialty">Por completar</b></div>
+            <div><span>CÉDULA PROFESIONAL</span><b id="memberExpedienteLicense">Por completar</b></div>
+            <div><span>IDENTIFICADOR DE CREDENCIAL</span><b id="memberExpedienteCredential">—</b></div>
+          </div>
+          <p class="member-expediente-note">Los datos de este expediente se administran desde los registros institucionales de PAS. Para solicitar una actualización, utiliza el apartado «Mis solicitudes».</p>
         </article>
       </section>
-      <section class="member-portal-card member-events-card" aria-labelledby="memberEventsHeading">
+
+      <section class="member-view" id="memberViewEvents" aria-labelledby="memberEventsHeading"><section class="member-portal-card member-events-card" aria-labelledby="memberEventsHeading">
         <div class="member-portal-section-head"><div><span class="eyebrow">COMUNIDAD Y PARTICIPACIÓN</span><h2 id="memberEventsHeading">Próximos eventos PAS</h2><p>Consulta las actividades publicadas por la Directiva y revisa tu participación.</p></div></div>
         <div id="memberPublishedEvents" class="member-events-list" aria-live="polite"><p class="muted">Cargando eventos publicados…</p></div>
         <div class="member-portal-section-head member-attendance-heading"><div><span class="eyebrow">MI PARTICIPACIÓN</span><h2>Mi historial de asistencia</h2></div></div>
         <div id="memberAttendanceHistory" class="member-events-list" aria-live="polite"><p class="muted">Cargando tu historial…</p></div>
-      </section>
-      <section class="member-portal-card member-certificates-card"><div class="member-portal-section-head"><div><span class="eyebrow">RECONOCIMIENTO Y FORMACIÓN</span><h2>Mis constancias</h2><p>Documentos emitidos por la Directiva a tu nombre.</p></div></div><div id="memberCertificatesList" class="member-events-list"><p class="muted">Cargando tus constancias…</p></div></section>
-      <section class="member-portal-card member-contact-card">
-        <div class="member-portal-section-head"><div><span class="eyebrow">DATOS DE CONTACTO Y PERFIL</span><h2>Mi información</h2><p>Los cambios se envían a revisión de la Directiva antes de actualizar tu expediente.</p></div></div>
+      </section></section>
+      <section class="member-view" id="memberViewCertificates" aria-labelledby="memberCertificatesHeading"><section class="member-portal-card member-certificates-card"><div class="member-portal-section-head"><div><span class="eyebrow">RECONOCIMIENTO Y FORMACIÓN</span><h2 id="memberCertificatesHeading">Mis constancias</h2><p>Documentos emitidos por la Directiva a tu nombre.</p></div></div><div id="memberCertificatesList" class="member-events-list"><p class="muted">Cargando tus constancias…</p></div></section></section>
+      <section class="member-view" id="memberViewProfile" aria-labelledby="memberProfileHeading"><section class="member-portal-card member-contact-card">
+        <div class="member-portal-section-head"><div><span class="eyebrow">DATOS DE CONTACTO Y PERFIL</span><h2 id="memberProfileHeading">Mi información</h2><p>Los cambios se envían a revisión de la Directiva antes de actualizar tu expediente.</p></div></div>
         <form id="profileChangeForm" class="member-profile-form">
           <div class="profile-photo-editor form-field full">
             <div class="profile-photo-preview-wrap"><img id="profilePhotoPreview" class="profile-photo-preview hidden" alt="Vista previa de fotografía profesional"><div id="profilePhotoPlaceholder" class="profile-photo-placeholder">PAS</div></div>
@@ -126,10 +197,15 @@
           <div class="form-field full"><label for="profileAbout">PRESENTACIÓN PROFESIONAL (OPCIONAL)</label><textarea id="profileAbout" rows="5" maxlength="1200"></textarea></div>
           <div class="member-profile-submit"><small>Tu fotografía y los datos profesionales autorizados aparecerán en la consulta pública después de la aprobación de Directiva. Los datos de contacto permanecen privados.</small><button type="submit" class="btn btn-primary" id="submitProfileChanges">Enviar actualización a Directiva →</button></div>
         </form>
+      </section></section>
+      <section class="member-view" id="memberViewRequests" aria-labelledby="memberRequestsHeading"><section class="member-portal-card member-request-card"><div class="member-portal-section-head"><div><span class="eyebrow">ATENCIÓN INSTITUCIONAL</span><h2 id="memberRequestsHeading">Enviar una solicitud</h2><p>Presenta propuestas, permisos, colaboraciones o cualquier gestión dirigida a la Directiva.</p></div></div><form id="institutionalRequestForm" class="institutional-request-form"><div class="form-field"><label for="requestCategory">TIPO DE SOLICITUD *</label><select id="requestCategory" required><option value="">Selecciona una categoría</option><option>Propuesta de actividad o debate</option><option>Solicitud de permiso o autorización</option><option>Incorporación a institución, espacio o proyecto</option><option>Propuesta de colaboración</option><option>Solicitud de apoyo o gestión</option><option>Otra solicitud</option></select></div><div class="form-field"><label for="requestSubject">ASUNTO *</label><input id="requestSubject" maxlength="160" required placeholder="Ej. Propuesta de debate sobre salud mental comunitaria"></div><div class="form-field full"><label for="requestDescription">DESCRIPCIÓN *</label><textarea id="requestDescription" rows="5" maxlength="5000" required placeholder="Explica libremente tu propuesta o solicitud, sus motivos y los detalles que consideres importantes."></textarea></div><div class="form-field"><label for="requestPlace">LUGAR / INSTITUCIÓN (OPCIONAL)</label><input id="requestPlace" maxlength="180" placeholder="Nombre del lugar o institución"></div><div class="form-field"><label for="requestDate">FECHA O PERIODO PROPUESTO (OPCIONAL)</label><input id="requestDate" type="date"></div><div class="form-field full"><button class="btn btn-primary" id="submitInstitutionalRequest" type="submit">Enviar solicitud a Directiva →</button><small class="field-help">Al enviarla recibirás un folio para consultar su seguimiento.</small></div></form><div class="member-portal-section-head institutional-request-history-head"><div><span class="eyebrow">SEGUIMIENTO</span><h2>Mis solicitudes</h2></div></div><div id="memberRequestsList" class="member-request-list"><p class="muted">Cargando solicitudes…</p></div></section></section>
+      <section class="member-view" id="memberViewAcademy" aria-labelledby="memberAcademyHeading">
+        <div class="member-page-heading"><div><span class="eyebrow">FORMACIÓN Y DESARROLLO PROFESIONAL</span><h1 id="memberAcademyHeading">Academia <em>PAS.</em></h1><p>Un espacio para fortalecer la práctica profesional y el aprendizaje continuo.</p></div><span class="member-coming-soon">PRÓXIMAMENTE</span></div>
+        <article class="member-portal-card member-academy-preview"><div class="member-academy-symbol">✦</div><h2>La formación continua, conectada con tu comunidad.</h2><p>Estamos preparando este espacio para ofrecer cursos, actividades formativas y recursos con beneficios para integrantes PAS.</p><span class="member-coming-soon">MÓDULO EN DESARROLLO</span></article>
       </section>
-      <section class="member-portal-card member-request-card"><div class="member-portal-section-head"><div><span class="eyebrow">ATENCIÓN INSTITUCIONAL</span><h2>Enviar una solicitud</h2><p>Presenta propuestas, permisos, colaboraciones o cualquier gestión dirigida a la Directiva.</p></div></div><form id="institutionalRequestForm" class="institutional-request-form"><div class="form-field"><label for="requestCategory">TIPO DE SOLICITUD *</label><select id="requestCategory" required><option value="">Selecciona una categoría</option><option>Propuesta de actividad o debate</option><option>Solicitud de permiso o autorización</option><option>Incorporación a institución, espacio o proyecto</option><option>Propuesta de colaboración</option><option>Solicitud de apoyo o gestión</option><option>Otra solicitud</option></select></div><div class="form-field"><label for="requestSubject">ASUNTO *</label><input id="requestSubject" maxlength="160" required placeholder="Ej. Propuesta de debate sobre salud mental comunitaria"></div><div class="form-field full"><label for="requestDescription">DESCRIPCIÓN *</label><textarea id="requestDescription" rows="5" maxlength="5000" required placeholder="Explica libremente tu propuesta o solicitud, sus motivos y los detalles que consideres importantes."></textarea></div><div class="form-field"><label for="requestPlace">LUGAR / INSTITUCIÓN (OPCIONAL)</label><input id="requestPlace" maxlength="180" placeholder="Nombre del lugar o institución"></div><div class="form-field"><label for="requestDate">FECHA O PERIODO PROPUESTO (OPCIONAL)</label><input id="requestDate" type="date"></div><div class="form-field full"><button class="btn btn-primary" id="submitInstitutionalRequest" type="submit">Enviar solicitud a Directiva →</button><small class="field-help">Al enviarla recibirás un folio para consultar su seguimiento.</small></div></form><div class="member-portal-section-head institutional-request-history-head"><div><span class="eyebrow">SEGUIMIENTO</span><h2>Mis solicitudes</h2></div></div><div id="memberRequestsList" class="member-request-list"><p class="muted">Cargando solicitudes…</p></div></section>
     </main>
-    <footer class="member-portal-footer"><span>PAS ID · Psicólogos Asociados del Soconusco</span><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">Sitio institucional ↗</a></footer>
+      <footer class="member-portal-footer"><span>PAS ID · Psicólogos Asociados del Soconusco</span><a href="https://psicologosasociadosdelsoconusco.github.io/PAS/" target="_blank" rel="noopener">Sitio institucional ↗</a></footer>
+    </div>
   </section>
 
   <section id="publicScreen" class="public-screen hidden">
@@ -149,7 +225,7 @@
 
   <div id="appShell" class="app-shell hidden">
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-brand"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>IDENTIDAD INSTITUCIONAL</small></div><button class="mobile-close" id="closeSidebar" aria-label="Cerrar menú">×</button></div>
+      <div class="sidebar-brand"><img src="assets/pas-logo.png" alt="PAS"><div><strong>PAS <span>ID</span></strong><small>IDENTIDAD INSTITUCIONAL</small></div><button type="button" class="admin-sidebar-collapse" id="toggleAdminSidebar" aria-label="Contraer menú" title="Contraer menú">‹</button><button class="mobile-close" id="closeSidebar" aria-label="Cerrar menú">×</button></div>
       <div class="workspace-label">ESPACIO DE TRABAJO</div>
       <nav class="main-nav" aria-label="Menú principal">
         <button class="nav-item active" data-view="overview"><span class="nav-icon">◫</span>Resumen</button>

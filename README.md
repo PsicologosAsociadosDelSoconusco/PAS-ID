@@ -40,3 +40,8 @@ Desde el Directorio de miembros, Directiva puede abrir la ficha de un afiliado o
 
 Después de actualizar `supabase/functions/manage-member-access/index.ts`, vuelve a desplegar la función `manage-member-access` desde Supabase (o mediante Supabase CLI). No se requiere una migración SQL adicional para esta opción.
 La presentación profesional admite hasta **1,200 caracteres** tanto en el portal del miembro como en la edición administrativa.
+
+
+## Renovación visual · Etapa 1
+
+Consulta `RENOVACION-ETAPA-1.md` para los cambios del portal de integrantes, la credencial digital y la navegación. Esta etapa no agrega migraciones SQL ni cambia la estructura de Supabase.
